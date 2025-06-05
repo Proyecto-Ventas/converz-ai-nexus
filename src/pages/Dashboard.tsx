@@ -19,15 +19,15 @@ const Dashboard = () => {
     .slice(0, 3);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+    <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+            <h1 className="text-3xl font-bold text-gray-900">
               Dashboard
             </h1>
-            <p className="text-gray-600 dark:text-gray-400">
+            <p className="text-gray-600">
               Bienvenido de vuelta. Aquí está tu progreso de entrenamiento.
             </p>
           </div>
@@ -73,16 +73,16 @@ const Dashboard = () => {
                   {recentAchievements.map((userAchievement) => (
                     <div
                       key={userAchievement.id}
-                      className="flex items-center space-x-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg"
+                      className="flex items-center space-x-3 p-3 bg-yellow-50 rounded-lg"
                     >
                       <div className="h-10 w-10 bg-yellow-500 rounded-full flex items-center justify-center">
                         <span className="text-white font-bold">🏆</span>
                       </div>
                       <div className="flex-1">
-                        <h4 className="font-medium text-gray-900 dark:text-gray-100">
+                        <h4 className="font-medium text-gray-900">
                           {userAchievement.achievement.title}
                         </h4>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                        <p className="text-sm text-gray-600">
                           +{userAchievement.achievement.xp_reward || 0} XP obtenidos
                         </p>
                       </div>

@@ -146,12 +146,12 @@ const Profile = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+      <div className="min-h-screen bg-gray-50 p-6">
         <div className="max-w-4xl mx-auto">
           <div className="animate-pulse space-y-6">
             <Card>
               <CardContent className="p-6">
-                <div className="h-32 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                <div className="h-32 bg-gray-200 rounded"></div>
               </CardContent>
             </Card>
           </div>
@@ -161,7 +161,7 @@ const Profile = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+    <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header del perfil */}
         <Card>
@@ -188,10 +188,10 @@ const Profile = () => {
               {/* Información básica */}
               <div className="flex-1 space-y-4">
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                  <h1 className="text-2xl font-bold text-gray-900">
                     {profile?.full_name || 'Usuario'}
                   </h1>
-                  <p className="text-gray-600 dark:text-gray-400">{profile?.email}</p>
+                  <p className="text-gray-600">{profile?.email}</p>
                 </div>
 
                 {/* Estadísticas rápidas */}
@@ -331,10 +331,10 @@ const Profile = () => {
                 {earnedAchievements.length === 0 ? (
                   <div className="text-center py-8">
                     <Trophy className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
                       Aún no tienes logros
                     </h3>
-                    <p className="text-gray-600 dark:text-gray-400">
+                    <p className="text-gray-600">
                       Completa sesiones de entrenamiento para desbloquear logros
                     </p>
                   </div>

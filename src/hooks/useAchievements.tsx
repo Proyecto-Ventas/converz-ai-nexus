@@ -9,9 +9,10 @@ export interface Achievement {
   description: string;
   icon: string;
   requirements: any;
-  points: number;
+  xp_reward: number;
   is_active: boolean;
   created_at: string;
+  category?: string;
 }
 
 export interface UserAchievement {
@@ -26,7 +27,8 @@ export interface UserAchievement {
 }
 
 export const useAchievements = () => {
-  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [achievements, setAchievements] = useState<UserAchievement[]>([]);
+  const [availableAchievements, setAvailableAchievements] = useState<Achievement[]>([]);
   const [userAchievements, setUserAchievements] = useState<UserAchievement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +50,7 @@ export const useAchievements = () => {
         throw achievementsError;
       }
 
-      setAchievements(achievementsData || []);
+      setAvailableAchievements(achievementsData || []);
 
       // Load user achievements if user is authenticated
       if (user?.id) {
@@ -58,20 +60,27 @@ export const useAchievements = () => {
           .from('user_achievements')
           .select(`
             *,
-            achievements!fk_user_achievements_achievement_id (*)
+            achievement:achievements(*)
           `)
           .eq('user_id', user.id);
 
         if (userAchievementsError) {
           console.error('Error loading user achievements:', userAchievementsError);
-          // Don't throw here, just log the error
           setUserAchievements([]);
+          setAchievements([]);
         } else {
-          setUserAchievements(userAchievementsData || []);
+          const formattedUserAchievements = (userAchievementsData || []).map(ua => ({
+            ...ua,
+            achievement: ua.achievement as Achievement,
+            created_at: ua.created_at || new Date().toISOString()
+          })) as UserAchievement[];
+          
+          setUserAchievements(formattedUserAchievements);
+          setAchievements(formattedUserAchievements);
         }
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error in loadAchievements:', error);
       setError(error.message || 'Error loading achievements');
     } finally {
@@ -104,6 +113,7 @@ export const useAchievements = () => {
 
   return {
     achievements,
+    availableAchievements,
     userAchievements,
     loading,
     error,

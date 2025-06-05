@@ -35,13 +35,13 @@ const Achievements = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+      <div className="min-h-screen bg-gray-50 p-6">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(6)].map((_, i) => (
               <Card key={i} className="animate-pulse">
                 <CardContent className="p-6">
-                  <div className="h-32 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                  <div className="h-32 bg-gray-200 rounded"></div>
                 </CardContent>
               </Card>
             ))}
@@ -52,15 +52,15 @@ const Achievements = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+    <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+            <h1 className="text-3xl font-bold text-gray-900">
               Logros
             </h1>
-            <p className="text-gray-600 dark:text-gray-400">
+            <p className="text-gray-600">
               Desbloquea logros completando entrenamientos y alcanzando objetivos
             </p>
           </div>
@@ -178,10 +178,10 @@ const Achievements = () => {
               <Card>
                 <CardContent className="p-12 text-center">
                   <Trophy className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
                     Aún no has desbloqueado logros
                   </h3>
-                  <p className="text-gray-600 dark:text-gray-400">
+                  <p className="text-gray-600">
                     Completa sesiones de entrenamiento para desbloquear tu primer logro
                   </p>
                 </CardContent>
@@ -203,10 +203,10 @@ const Achievements = () => {
               <Card>
                 <CardContent className="p-12 text-center">
                   <Target className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
                     No hay logros en progreso
                   </h3>
-                  <p className="text-gray-600 dark:text-gray-400">
+                  <p className="text-gray-600">
                     Los logros aparecerán aquí cuando comiences a trabajar en ellos
                   </p>
                 </CardContent>
@@ -228,10 +228,10 @@ const Achievements = () => {
               <Card>
                 <CardContent className="p-12 text-center">
                   <Star className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
                     No hay más logros disponibles
                   </h3>
-                  <p className="text-gray-600 dark:text-gray-400">
+                  <p className="text-gray-600">
                     ¡Has descubierto todos los logros en esta categoría!
                   </p>
                 </CardContent>
