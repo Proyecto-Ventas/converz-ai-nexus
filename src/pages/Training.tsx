@@ -14,7 +14,6 @@ const Training = () => {
   const [currentView, setCurrentView] = useState('setup');
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
   const [interactionMode, setInteractionMode] = useState('call');
-  const [trainingConfig, setTrainingConfig] = useState(null);
   const [evaluationResults, setEvaluationResults] = useState(null);
 
   const handleScenarioSelect = (scenario: Scenario) => {
@@ -23,19 +22,6 @@ const Training = () => {
 
   const startTraining = () => {
     if (!selectedScenario) return;
-
-    const config = {
-      scenario: selectedScenario.id,
-      scenarioTitle: selectedScenario.title,
-      scenarioDescription: selectedScenario.description,
-      promptInstructions: selectedScenario.prompt_instructions,
-      expectedOutcomes: selectedScenario.expected_outcomes,
-      clientEmotion: 'neutral',
-      interactionMode,
-      behaviors: {}
-    };
-
-    setTrainingConfig(config);
     setCurrentView('training');
   };
 
@@ -47,15 +33,16 @@ const Training = () => {
   const resetTraining = () => {
     setCurrentView('setup');
     setSelectedScenario(null);
-    setTrainingConfig(null);
     setEvaluationResults(null);
   };
 
-  if (currentView === 'training' && trainingConfig) {
+  if (currentView === 'training' && selectedScenario) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
+      <div className="min-h-screen bg-white p-4">
         <LiveTrainingInterface
-          config={trainingConfig}
+          scenario={selectedScenario.id}
+          scenarioTitle={selectedScenario.title}
+          scenarioDescription={selectedScenario.description}
           onComplete={handleTrainingComplete}
           onBack={resetTraining}
         />
@@ -65,7 +52,7 @@ const Training = () => {
 
   if (currentView === 'results' && evaluationResults) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
+      <div className="min-h-screen bg-white p-4">
         <EvaluationResults
           evaluation={evaluationResults}
           onRetry={resetTraining}
@@ -76,13 +63,13 @@ const Training = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+    <div className="min-h-screen bg-white p-6">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Centro de Entrenamiento
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-gray-600">
             Selecciona un escenario y configura tu sesión de entrenamiento con IA
           </p>
         </div>
@@ -90,7 +77,7 @@ const Training = () => {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Selector de Escenario */}
           <div className="lg:col-span-3">
-            <Card>
+            <Card className="bg-white border-gray-200">
               <CardHeader>
                 <CardTitle>Seleccionar Escenario de Entrenamiento</CardTitle>
               </CardHeader>
@@ -103,7 +90,7 @@ const Training = () => {
           {/* Panel de Configuración */}
           <div className="space-y-6">
             {/* Modo de Interacción */}
-            <Card>
+            <Card className="bg-white border-gray-200">
               <CardHeader>
                 <CardTitle>Modo de Interacción</CardTitle>
               </CardHeader>
@@ -137,7 +124,7 @@ const Training = () => {
 
             {/* Escenario Seleccionado */}
             {selectedScenario && (
-              <Card>
+              <Card className="bg-white border-gray-200">
                 <CardHeader>
                   <CardTitle>Escenario Seleccionado</CardTitle>
                 </CardHeader>
@@ -145,13 +132,12 @@ const Training = () => {
                   <div className="space-y-3">
                     <div>
                       <h4 className="font-medium text-sm">{selectedScenario.title}</h4>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                      <p className="text-xs text-gray-600 mt-1">
                         {selectedScenario.description}
                       </p>
                     </div>
                     
                     {(() => {
-                      // Type guard para expected_outcomes
                       const expectedOutcomes = selectedScenario.expected_outcomes as { objectives?: string[] } | null;
                       const objectives = expectedOutcomes?.objectives || [];
                       
@@ -160,7 +146,7 @@ const Training = () => {
                           <h5 className="text-xs font-medium text-gray-500 mb-1">Objetivos:</h5>
                           <ul className="space-y-1">
                             {objectives.map((objective: string, index: number) => (
-                              <li key={index} className="text-xs text-gray-600 dark:text-gray-400 flex items-center">
+                              <li key={index} className="text-xs text-gray-600 flex items-center">
                                 <div className="w-1 h-1 bg-purple-600 rounded-full mr-2" />
                                 {objective}
                               </li>
@@ -175,17 +161,17 @@ const Training = () => {
             )}
 
             {/* Configuración de Voz */}
-            <Card>
+            <Card className="bg-white border-gray-200">
               <CardHeader>
                 <CardTitle>Configuración de Voz</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-center">
-                  <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  <div className="text-sm text-gray-600 mb-4">
                     🎲 Se seleccionará una voz aleatoria para cada sesión
                   </div>
-                  <div className="bg-purple-50 dark:bg-purple-900/20 p-3 rounded-lg">
-                    <p className="text-sm text-purple-700 dark:text-purple-300">
+                  <div className="bg-purple-50 p-3 rounded-lg">
+                    <p className="text-sm text-purple-700">
                       Cada entrenamiento tendrá una personalidad y voz única para mayor variedad
                     </p>
                   </div>

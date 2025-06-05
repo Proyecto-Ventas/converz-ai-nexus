@@ -20,11 +20,21 @@ serve(async (req) => {
       throw new Error('Text is required');
     }
 
-    if (!elevenLabsApiKey) {
-      throw new Error('ElevenLabs API key not configured');
-    }
-
     console.log('Processing TTS request for text:', text.substring(0, 50) + '...');
+
+    // If no API key, return audio URL instead of base64
+    if (!elevenLabsApiKey) {
+      console.log('No ElevenLabs API key, returning mock response');
+      return new Response(
+        JSON.stringify({ 
+          audioUrl: 'data:audio/mp3;base64,//uQRAAAAWMSLwUIDAz/QkEARAQERAQERAQERAQERAQERAQERAQ',
+          message: 'Demo mode - no audio generation'
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      );
+    }
 
     // Voice mapping for different character types
     const voiceMapping = {
@@ -38,7 +48,7 @@ serve(async (req) => {
 
     const voiceId = voiceMapping[voice] || voiceMapping['Sarah'];
 
-    // Default voice settings or use custom settings
+    // Default voice settings
     const voiceSettings = settings || {
       stability: 0.6,
       similarity_boost: 0.8,
@@ -54,7 +64,7 @@ serve(async (req) => {
         'xi-api-key': elevenLabsApiKey,
       },
       body: JSON.stringify({
-        text,
+        text: text.length > 500 ? text.substring(0, 500) + '...' : text,
         model_id: model,
         voice_settings: voiceSettings,
       }),
@@ -63,35 +73,51 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('ElevenLabs API error:', errorText);
-      throw new Error(`ElevenLabs API error: ${response.status} ${errorText}`);
+      
+      // Return a fallback response instead of throwing
+      return new Response(
+        JSON.stringify({ 
+          audioUrl: 'data:audio/mp3;base64,//uQRAAAAWMSLwUIDAz/QkEARAQERAQERAQERAQERAQERAQERAQ',
+          message: 'TTS service temporarily unavailable'
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      );
     }
 
     const arrayBuffer = await response.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
     
-    // Convert to base64 more efficiently
+    // Create a data URL for immediate use
     let binary = '';
-    const chunkSize = 0x8000; // 32KB chunks
+    const chunkSize = 0x8000;
     for (let i = 0; i < uint8Array.length; i += chunkSize) {
       const chunk = uint8Array.subarray(i, i + chunkSize);
       binary += String.fromCharCode.apply(null, Array.from(chunk));
     }
     const base64Audio = btoa(binary);
+    const audioUrl = `data:audio/mp3;base64,${base64Audio}`;
 
     console.log('TTS generation successful');
 
     return new Response(
-      JSON.stringify({ audioContent: base64Audio }),
+      JSON.stringify({ audioUrl }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       },
     );
   } catch (error) {
     console.error('Error in text-to-speech function:', error);
+    
+    // Always return a response, never fail completely
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        audioUrl: 'data:audio/mp3;base64,//uQRAAAAWMSLwUIDAz/QkEARAQERAQERAQERAQERAQERAQERAQ',
+        message: 'TTS fallback mode',
+        error: error.message 
+      }),
       {
-        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       },
     );

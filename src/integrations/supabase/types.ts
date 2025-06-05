@@ -822,24 +822,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "fk_user_achievements_achievement_id"
-            columns: ["achievement_id"]
-            isOneToOne: false
-            referencedRelation: "achievements"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "fk_user_achievements_user_id"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_achievements_achievement_id_fkey"
-            columns: ["achievement_id"]
-            isOneToOne: false
-            referencedRelation: "achievements"
             referencedColumns: ["id"]
           },
         ]
