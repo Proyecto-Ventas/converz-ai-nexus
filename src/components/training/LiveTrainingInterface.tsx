@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Mic, MicOff, Volume2, VolumeX, Loader2, MessageSquare } from 'lucide-react';
+import { Mic, MicOff, Volume2, VolumeX, Loader2, MessageSquare, Phone, PhoneOff, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,17 +13,6 @@ interface Message {
   content: string;
   timestamp: number;
   audioUrl?: string;
-}
-
-interface TrainingConfig {
-  scenario: string;
-  scenarioTitle: string;
-  scenarioDescription: string;
-  promptInstructions?: string;
-  expectedOutcomes?: any;
-  clientEmotion: string;
-  interactionMode: string;
-  behaviors: any;
 }
 
 interface LiveTrainingInterfaceProps {
@@ -47,6 +36,7 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [sessionStartTime, setSessionStartTime] = useState<number>(Date.now());
   
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -67,13 +57,23 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
         return;
       }
 
+      const startTime = Date.now();
+      setSessionStartTime(startTime);
+
       const { data: sessionData, error } = await supabase
         .from('training_sessions')
         .insert({
           scenario_id: scenario,
-          session_status: 'active',
-          interaction_mode: 'call',
-          user_id: user.user.id
+          user_id: user.user.id,
+          duration_minutes: 0,
+          score: 0,
+          conversation_log: {
+            scenario_title: scenarioTitle,
+            interaction_mode: 'call',
+            session_status: 'active',
+            started_at: new Date(startTime).toISOString(),
+            total_messages: 0
+          }
         })
         .select()
         .single();
@@ -98,7 +98,7 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
         variant: "destructive",
       });
     }
-  }, [scenario, toast]);
+  }, [scenario, scenarioTitle, toast]);
 
   // Send AI greeting
   const sendAiGreeting = async (currentSessionId: string) => {
@@ -158,21 +158,15 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
         if (audioRef.current) {
           audioRef.current.pause();
           audioRef.current.currentTime = 0;
+          audioRef.current.removeEventListener('ended', handleAudioEnd);
+          audioRef.current.removeEventListener('error', handleAudioError);
         }
 
         // Create and play new audio
         const audio = new Audio(data.audioUrl);
         audioRef.current = audio;
         
-        audio.oncanplaythrough = () => {
-          console.log('Audio can play through, starting playback');
-          audio.play().catch(error => {
-            console.error('Audio play error:', error);
-            setIsAiSpeaking(false);
-          });
-        };
-
-        audio.onended = () => {
+        const handleAudioEnd = () => {
           console.log('Audio playback finished');
           setIsAiSpeaking(false);
           // Auto-restart listening after AI speaks
@@ -183,9 +177,20 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
           }, 500);
         };
 
-        audio.onerror = (error) => {
+        const handleAudioError = (error: any) => {
           console.error('Audio playback error:', error);
           setIsAiSpeaking(false);
+        };
+
+        audio.addEventListener('ended', handleAudioEnd);
+        audio.addEventListener('error', handleAudioError);
+
+        audio.oncanplaythrough = () => {
+          console.log('Audio can play through, starting playback');
+          audio.play().catch(error => {
+            console.error('Audio play error:', error);
+            setIsAiSpeaking(false);
+          });
         };
 
         // Fallback timeout
@@ -391,16 +396,26 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
       
       if (audioRef.current) {
         audioRef.current.pause();
+        audioRef.current.removeEventListener('ended', () => {});
+        audioRef.current.removeEventListener('error', () => {});
       }
 
       if (sessionId) {
+        const durationMinutes = Math.floor((Date.now() - sessionStartTime) / 60000);
+        
         const { error } = await supabase
           .from('training_sessions')
           .update({
             completed_at: new Date().toISOString(),
-            session_status: 'completed',
-            total_messages: messages.length,
-            duration_minutes: Math.floor((Date.now() - (messages[0]?.timestamp || Date.now())) / 60000)
+            duration_minutes: durationMinutes,
+            conversation_log: {
+              scenario_title: scenarioTitle,
+              interaction_mode: 'call',
+              session_status: 'completed',
+              started_at: new Date(sessionStartTime).toISOString(),
+              ended_at: new Date().toISOString(),
+              total_messages: messages.length
+            }
           })
           .eq('id', sessionId);
 
@@ -417,7 +432,7 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
       onComplete({
         sessionId,
         messages,
-        duration: Math.floor((Date.now() - (messages[0]?.timestamp || Date.now())) / 60000)
+        duration: Math.floor((Date.now() - sessionStartTime) / 60000)
       });
 
     } catch (error) {
@@ -436,116 +451,201 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
       }
       if (audioRef.current) {
         audioRef.current.pause();
+        audioRef.current.removeEventListener('ended', () => {});
+        audioRef.current.removeEventListener('error', () => {});
       }
     };
   }, [setupSpeechRecognition, initializeSession]);
 
+  const formatDuration = (startTime: number) => {
+    const duration = Math.floor((Date.now() - startTime) / 1000);
+    const minutes = Math.floor(duration / 60);
+    const seconds = duration % 60;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6 bg-white">
-      <Card className="bg-white border-gray-200">
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span className="flex items-center space-x-2">
-              <MessageSquare className="h-6 w-6" />
-              <span>Entrenamiento en Vivo - {scenarioTitle}</span>
-            </span>
-            <div className="flex items-center space-x-2">
-              <Badge variant={isSessionActive ? 'default' : 'secondary'}>
-                {isSessionActive ? 'Activo' : 'Inactivo'}
-              </Badge>
-              <Button variant="outline" size="sm" onClick={onBack}>
-                Volver
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4">
+      <div className="max-w-6xl mx-auto space-y-6">
+        {/* Header mejorado */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onBack}
+                className="flex items-center space-x-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span>Volver</span>
               </Button>
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900">{scenarioTitle}</h1>
+                <p className="text-slate-600 mt-1">{scenarioDescription}</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-4">
+              <div className="text-right">
+                <div className="text-sm text-slate-500">Duración</div>
+                <div className="text-lg font-mono font-bold text-slate-900">
+                  {formatDuration(sessionStartTime)}
+                </div>
+              </div>
+              <Badge 
+                variant={isSessionActive ? 'default' : 'secondary'}
+                className={isSessionActive ? 'bg-green-500 hover:bg-green-600' : ''}
+              >
+                {isSessionActive ? 'En Vivo' : 'Inactivo'}
+              </Badge>
               {isSessionActive && (
-                <Button variant="destructive" size="sm" onClick={endSession}>
-                  Finalizar Sesión
+                <Button 
+                  variant="destructive" 
+                  size="sm" 
+                  onClick={endSession}
+                  className="flex items-center space-x-2"
+                >
+                  <PhoneOff className="h-4 w-4" />
+                  <span>Finalizar</span>
                 </Button>
               )}
             </div>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Voice Controls */}
-          <div className="flex items-center justify-center space-x-4 p-4 bg-gray-50 rounded-lg">
-            <div className="flex items-center space-x-2">
-              {isListening ? (
-                <Mic className="h-5 w-5 text-green-600 animate-pulse" />
-              ) : (
-                <MicOff className="h-5 w-5 text-gray-600" />
-              )}
-              <span className="text-sm font-medium">
-                {isListening ? 'Escuchando...' : 'En espera'}
-              </span>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              {isAiSpeaking ? (
-                <Volume2 className="h-5 w-5 text-blue-600 animate-pulse" />
-              ) : (
-                <VolumeX className="h-5 w-5 text-gray-600" />
-              )}
-              <span className="text-sm font-medium">
-                {isAiSpeaking ? 'IA Hablando...' : 'IA Silenciosa'}
-              </span>
-            </div>
-
-            {isProcessing && (
-              <div className="flex items-center space-x-2">
-                <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
-                <span className="text-sm font-medium">Procesando...</span>
-              </div>
-            )}
-
-            <Button
-              onClick={isListening ? stopListening : startListening}
-              disabled={isAiSpeaking || !isSessionActive}
-              variant={isListening ? "destructive" : "default"}
-              size="sm"
-            >
-              {isListening ? 'Detener' : 'Hablar'}
-            </Button>
           </div>
+        </div>
 
-          {/* Conversation Display */}
-          <div className="h-96 overflow-y-auto border rounded-lg p-4 space-y-3 bg-white">
-            {messages.length === 0 ? (
-              <div className="text-center text-gray-500 py-8">
-                <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Iniciando conversación con el agente IA...</p>
-              </div>
-            ) : (
-              messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                      message.sender === 'user'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-200 text-gray-900'
-                    }`}
-                  >
-                    <p className="text-sm">{message.content}</p>
-                    <span className="text-xs opacity-70">
-                      {new Date(message.timestamp).toLocaleTimeString()}
-                    </span>
-                  </div>
+        {/* Control Panel mejorado */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+          <div className="flex items-center justify-center">
+            <div className="flex items-center space-x-8">
+              {/* Estado del micrófono */}
+              <div className="flex flex-col items-center space-y-2">
+                <div className={`p-4 rounded-full ${isListening ? 'bg-green-100 border-2 border-green-300' : 'bg-slate-100'}`}>
+                  {isListening ? (
+                    <Mic className="h-8 w-8 text-green-600 animate-pulse" />
+                  ) : (
+                    <MicOff className="h-8 w-8 text-slate-400" />
+                  )}
                 </div>
-              ))
-            )}
+                <div className="text-center">
+                  <div className="text-sm font-medium text-slate-900">
+                    {isListening ? 'Escuchando' : 'En Espera'}
+                  </div>
+                  <div className="text-xs text-slate-500">Micrófono</div>
+                </div>
+              </div>
+
+              {/* Control principal */}
+              <div className="flex flex-col items-center space-y-4">
+                <Button
+                  onClick={isListening ? stopListening : startListening}
+                  disabled={isAiSpeaking || !isSessionActive}
+                  size="lg"
+                  className={`h-16 w-16 rounded-full ${
+                    isListening 
+                      ? 'bg-red-500 hover:bg-red-600' 
+                      : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
+                >
+                  {isListening ? (
+                    <Phone className="h-8 w-8" />
+                  ) : (
+                    <Phone className="h-8 w-8" />
+                  )}
+                </Button>
+                <span className="text-sm font-medium text-slate-700">
+                  {isListening ? 'Presiona para detener' : 'Presiona para hablar'}
+                </span>
+              </div>
+
+              {/* Estado del AI */}
+              <div className="flex flex-col items-center space-y-2">
+                <div className={`p-4 rounded-full ${isAiSpeaking ? 'bg-blue-100 border-2 border-blue-300' : 'bg-slate-100'}`}>
+                  {isAiSpeaking ? (
+                    <Volume2 className="h-8 w-8 text-blue-600 animate-pulse" />
+                  ) : (
+                    <VolumeX className="h-8 w-8 text-slate-400" />
+                  )}
+                </div>
+                <div className="text-center">
+                  <div className="text-sm font-medium text-slate-900">
+                    {isAiSpeaking ? 'IA Hablando' : 'IA Silenciosa'}
+                  </div>
+                  <div className="text-xs text-slate-500">Audio</div>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Session Info */}
-          <div className="text-center text-sm text-gray-600">
-            {isSessionActive ? (
-              <p>✅ Conversación automática activa - Habla naturalmente para continuar</p>
-            ) : (
-              <p>❌ Sesión inactiva</p>
-            )}
+          {isProcessing && (
+            <div className="flex items-center justify-center mt-4 p-3 bg-blue-50 rounded-lg">
+              <Loader2 className="h-5 w-5 animate-spin text-blue-600 mr-2" />
+              <span className="text-sm font-medium text-blue-700">Procesando respuesta...</span>
+            </div>
+          )}
+        </div>
+
+        {/* Conversation Display mejorado */}
+        <Card className="bg-white shadow-sm border border-slate-200">
+          <CardHeader className="border-b border-slate-100">
+            <CardTitle className="flex items-center space-x-2">
+              <MessageSquare className="h-5 w-5 text-slate-600" />
+              <span>Conversación en Tiempo Real</span>
+              <Badge variant="secondary" className="ml-auto">
+                {messages.length} mensajes
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="h-96 overflow-y-auto p-6 space-y-4 bg-slate-50">
+              {messages.length === 0 ? (
+                <div className="text-center py-12">
+                  <MessageSquare className="h-16 w-16 mx-auto mb-4 text-slate-300" />
+                  <p className="text-slate-500 text-lg">Iniciando conversación...</p>
+                  <p className="text-slate-400 text-sm mt-2">La conversación aparecerá aquí</p>
+                </div>
+              ) : (
+                messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-md px-4 py-3 rounded-2xl ${
+                        message.sender === 'user'
+                          ? 'bg-blue-600 text-white rounded-br-md'
+                          : 'bg-white text-slate-900 border border-slate-200 rounded-bl-md shadow-sm'
+                      }`}
+                    >
+                      <p className="text-sm leading-relaxed">{message.content}</p>
+                      <span className={`text-xs mt-2 block ${
+                        message.sender === 'user' ? 'text-blue-100' : 'text-slate-400'
+                      }`}>
+                        {new Date(message.timestamp).toLocaleTimeString()}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Status Bar */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+          <div className="flex items-center justify-center space-x-6 text-sm">
+            <div className="flex items-center space-x-2">
+              <div className={`w-2 h-2 rounded-full ${isSessionActive ? 'bg-green-500' : 'bg-slate-400'}`} />
+              <span className="text-slate-600">
+                {isSessionActive ? 'Sesión activa - Habla naturalmente' : 'Sesión inactiva'}
+              </span>
+            </div>
+            <div className="text-slate-400">•</div>
+            <span className="text-slate-500">
+              Reconocimiento de voz en español
+            </span>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };
