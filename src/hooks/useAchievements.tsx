@@ -22,7 +22,6 @@ export interface UserAchievement {
   progress: number;
   target: number;
   earned_at: string | null;
-  created_at: string;
   achievement: Achievement;
 }
 
@@ -64,8 +63,7 @@ export const useAchievements = () => {
             achievement_id,
             progress,
             target,
-            earned_at,
-            created_at
+            earned_at
           `)
           .eq('user_id', user.id);
 
@@ -81,9 +79,13 @@ export const useAchievements = () => {
             const achievement = achievementsData?.find(a => a.id === ua.achievement_id);
             if (achievement) {
               enhancedUserAchievements.push({
-                ...ua,
-                achievement,
-                created_at: ua.created_at || new Date().toISOString()
+                id: ua.id,
+                user_id: ua.user_id,
+                achievement_id: ua.achievement_id,
+                progress: ua.progress || 0,
+                target: ua.target || 1,
+                earned_at: ua.earned_at,
+                achievement
               });
             }
           }
