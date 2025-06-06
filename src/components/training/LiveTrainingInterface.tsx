@@ -153,14 +153,6 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
       if (data?.audioUrl) {
         console.log('Playing audio...');
         
-        // Stop any existing audio
-        if (audioRef.current) {
-          audioRef.current.pause();
-          audioRef.current.currentTime = 0;
-          audioRef.current.removeEventListener('ended', handleAudioEnd);
-          audioRef.current.removeEventListener('error', handleAudioError);
-        }
-
         // Define event handlers first
         const handleAudioEnd = () => {
           console.log('Audio playback finished');
@@ -177,6 +169,14 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
           console.error('Audio playback error:', error);
           setIsAiSpeaking(false);
         };
+
+        // Stop any existing audio
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+          audioRef.current.removeEventListener('ended', handleAudioEnd);
+          audioRef.current.removeEventListener('error', handleAudioError);
+        }
 
         // Create and play new audio
         const audio = new Audio(data.audioUrl);
