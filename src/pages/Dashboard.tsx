@@ -6,7 +6,7 @@ import RecentActivity from '@/components/dashboard/RecentActivity';
 import { useUserStats } from '@/hooks/useUserStats';
 import { useAchievements } from '@/hooks/useAchievements';
 import { Button } from '@/components/ui/button';
-import { Plus, TrendingUp, Zap, Target, BarChart3, Award, Clock } from 'lucide-react';
+import { Plus, TrendingUp, Zap, Target } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const Dashboard = () => {
@@ -19,145 +19,132 @@ const Dashboard = () => {
     .slice(0, 3);
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container-responsive py-6 space-y-8">
-        {/* Header Section */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-          <div className="space-y-3">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Header renovado */}
+        <div className="flex justify-between items-start">
+          <div className="space-y-2">
             <div className="flex items-center space-x-3">
-              <div className="p-3 bg-gradient-corporate rounded-xl shadow-sm">
-                <Target className="h-7 w-7 text-white" />
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Target className="h-6 w-6 text-blue-600" />
               </div>
-              <div>
-                <h1 className="text-3xl lg:text-4xl font-bold text-foreground">
-                  Panel de Control
-                </h1>
-                <p className="text-lg text-muted-foreground mt-1">
-                  Bienvenido de vuelta. Aquí está tu progreso de entrenamiento.
-                </p>
-              </div>
+              <h1 className="text-3xl font-bold text-slate-900">
+                Panel de Control
+              </h1>
             </div>
+            <p className="text-xl text-slate-600">
+              Bienvenido de vuelta. Aquí está tu progreso de entrenamiento.
+            </p>
           </div>
-          
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Button variant="outline" className="flex items-center space-x-2 h-11">
-              <BarChart3 className="h-4 w-4" />
-              <span>Ver Análisis</span>
+          <Link to="/training">
+            <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg">
+              <Plus className="h-4 w-4 mr-2" />
+              Nueva Sesión
             </Button>
-            <Link to="/training">
-              <Button className="btn-corporate flex items-center space-x-2 h-11">
-                <Plus className="h-4 w-4" />
-                <span>Nueva Sesión</span>
-              </Button>
-            </Link>
-          </div>
+          </Link>
         </div>
 
-        {/* Statistics Section */}
-        <div className="card-corporate p-1">
+        {/* Estadísticas principales */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-1">
           <DashboardStats />
         </div>
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-          {/* Recent Activity - Takes more space */}
-          <div className="xl:col-span-2">
-            <div className="card-corporate overflow-hidden">
-              <RecentActivity />
-            </div>
+        {/* Fila inferior */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Actividad reciente */}
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <RecentActivity />
           </div>
 
-          {/* Recent Achievements */}
-          <div className="xl:col-span-1">
-            <Card className="card-corporate">
-              <CardHeader className="flex flex-row items-center justify-between border-b border-border">
-                <CardTitle className="flex items-center space-x-2">
-                  <Zap className="h-5 w-5 text-amber-500" />
-                  <span>Logros Recientes</span>
-                </CardTitle>
-                <Link to="/achievements">
-                  <Button variant="outline" size="sm" className="h-8">
-                    <TrendingUp className="h-3 w-3 mr-2" />
-                    Ver Todos
-                  </Button>
-                </Link>
-              </CardHeader>
-              <CardContent className="p-6">
-                {achievementsLoading ? (
-                  <div className="text-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                    <p className="text-muted-foreground">Cargando logros...</p>
+          {/* Logros recientes */}
+          <Card className="bg-white shadow-sm border border-slate-200">
+            <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100">
+              <CardTitle className="flex items-center space-x-2">
+                <Zap className="h-5 w-5 text-yellow-500" />
+                <span>Logros Recientes</span>
+              </CardTitle>
+              <Link to="/achievements">
+                <Button variant="outline" size="sm" className="border-slate-200 hover:bg-slate-50">
+                  <TrendingUp className="h-4 w-4 mr-2" />
+                  Ver Todos
+                </Button>
+              </Link>
+            </CardHeader>
+            <CardContent className="p-6">
+              {achievementsLoading ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-slate-500">Cargando logros...</p>
+                </div>
+              ) : recentAchievements.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="p-4 bg-slate-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                    <Zap className="h-8 w-8 text-slate-400" />
                   </div>
-                ) : recentAchievements.length === 0 ? (
-                  <div className="text-center py-12">
-                    <div className="p-4 bg-muted rounded-xl w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                      <Award className="h-8 w-8 text-muted-foreground" />
-                    </div>
-                    <h3 className="font-semibold text-foreground mb-2">
-                      No hay logros recientes
-                    </h3>
-                    <p className="text-muted-foreground text-sm">
-                      ¡Completa algunas sesiones para desbloquear logros!
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {recentAchievements.map((userAchievement) => (
-                      <div
-                        key={userAchievement.id}
-                        className="flex items-center space-x-4 p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200 animate-fade-in"
-                      >
-                        <div className="h-12 w-12 bg-gradient-to-r from-amber-400 to-orange-500 rounded-xl flex items-center justify-center shadow-sm">
-                          <span className="text-xl">🏆</span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-foreground truncate">
-                            {userAchievement.achievement.title}
-                          </h4>
-                          <p className="text-sm text-amber-700">
-                            +{userAchievement.achievement.xp_reward || 0} XP obtenidos
-                          </p>
-                        </div>
-                        <div className="text-xs text-amber-600 font-medium">
-                          {new Date(userAchievement.earned_at!).toLocaleDateString()}
-                        </div>
+                  <h3 className="font-semibold text-slate-900 mb-2">
+                    No hay logros recientes
+                  </h3>
+                  <p className="text-slate-600">
+                    ¡Completa algunas sesiones para desbloquear logros!
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {recentAchievements.map((userAchievement) => (
+                    <div
+                      key={userAchievement.id}
+                      className="flex items-center space-x-4 p-4 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-200"
+                    >
+                      <div className="h-12 w-12 bg-gradient-to-r from-yellow-400 to-amber-500 rounded-full flex items-center justify-center shadow-lg">
+                        <span className="text-xl">🏆</span>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-slate-900">
+                          {userAchievement.achievement.title}
+                        </h4>
+                        <p className="text-sm text-slate-600">
+                          +{userAchievement.achievement.xp_reward || 0} XP obtenidos
+                        </p>
+                      </div>
+                      <div className="text-xs text-amber-600 font-medium">
+                        {new Date(userAchievement.earned_at!).toLocaleDateString()}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Progress Summary */}
+        {/* Resumen de progreso */}
         {!statsLoading && stats && (
-          <Card className="bg-gradient-corporate text-white shadow-xl border-0 overflow-hidden">
-            <CardHeader className="border-b border-white/10">
-              <CardTitle className="flex items-center space-x-2 text-white">
-                <TrendingUp className="h-6 w-6" />
+          <Card className="bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-xl border-0">
+            <CardHeader className="border-b border-slate-700">
+              <CardTitle className="flex items-center space-x-2">
+                <TrendingUp className="h-5 w-5" />
                 <span>Resumen de Progreso</span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-8">
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
+            <CardContent className="p-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 <div className="text-center">
-                  <div className="text-4xl font-bold text-white mb-2">{stats.total_sessions}</div>
-                  <div className="text-blue-100 text-sm font-medium">Sesiones Completadas</div>
+                  <div className="text-3xl font-bold text-blue-400 mb-1">{stats.total_sessions}</div>
+                  <div className="text-sm text-slate-300">Sesiones Completadas</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-4xl font-bold text-white mb-2">
+                  <div className="text-3xl font-bold text-green-400 mb-1">
                     {Math.floor((stats.total_time_minutes || 0) / 60)}h
                   </div>
-                  <div className="text-blue-100 text-sm font-medium">Tiempo Total</div>
+                  <div className="text-sm text-slate-300">Tiempo Total</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-4xl font-bold text-white mb-2">{stats.best_score}%</div>
-                  <div className="text-blue-100 text-sm font-medium">Mejor Puntuación</div>
+                  <div className="text-3xl font-bold text-purple-400 mb-1">{stats.best_score}%</div>
+                  <div className="text-sm text-slate-300">Mejor Puntuación</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-4xl font-bold text-white mb-2">{stats.total_xp}</div>
-                  <div className="text-blue-100 text-sm font-medium">XP Total</div>
+                  <div className="text-3xl font-bold text-yellow-400 mb-1">{stats.total_xp}</div>
+                  <div className="text-sm text-slate-300">XP Total</div>
                 </div>
               </div>
             </CardContent>
