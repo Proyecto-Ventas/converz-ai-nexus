@@ -59,8 +59,13 @@ export const useAchievements = () => {
         const { data: userAchievementsData, error: userAchievementsError } = await supabase
           .from('user_achievements')
           .select(`
-            *,
-            achievement:achievements(*)
+            id,
+            user_id,
+            achievement_id,
+            progress,
+            target,
+            earned_at,
+            created_at
           `)
           .eq('user_id', user.id);
 
@@ -69,14 +74,22 @@ export const useAchievements = () => {
           setUserAchievements([]);
           setAchievements([]);
         } else {
-          const formattedUserAchievements = (userAchievementsData || []).map(ua => ({
-            ...ua,
-            achievement: ua.achievement as Achievement,
-            created_at: ua.created_at || new Date().toISOString()
-          })) as UserAchievement[];
+          // Map user achievements with their corresponding achievement data
+          const enhancedUserAchievements: UserAchievement[] = [];
           
-          setUserAchievements(formattedUserAchievements);
-          setAchievements(formattedUserAchievements);
+          for (const ua of userAchievementsData || []) {
+            const achievement = achievementsData?.find(a => a.id === ua.achievement_id);
+            if (achievement) {
+              enhancedUserAchievements.push({
+                ...ua,
+                achievement,
+                created_at: ua.created_at || new Date().toISOString()
+              });
+            }
+          }
+          
+          setUserAchievements(enhancedUserAchievements);
+          setAchievements(enhancedUserAchievements);
         }
       }
 
