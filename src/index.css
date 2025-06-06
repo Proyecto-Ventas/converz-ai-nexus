@@ -5,7 +5,7 @@
 
 @layer base {
   :root {
-    --background: 248 250 252;
+    --background: 255 255 255;
     --foreground: 15 23 42;
 
     --card: 255 255 255;
@@ -17,14 +17,14 @@
     --primary: 59 130 246;
     --primary-foreground: 255 255 255;
 
-    --secondary: 241 245 249;
+    --secondary: 248 250 252;
     --secondary-foreground: 51 65 85;
 
     --muted: 248 250 252;
     --muted-foreground: 100 116 139;
 
-    --accent: 236 254 255;
-    --accent-foreground: 12 74 110;
+    --accent: 239 246 255;
+    --accent-foreground: 29 78 216;
 
     --destructive: 239 68 68;
     --destructive-foreground: 255 255 255;
@@ -35,12 +35,12 @@
 
     --radius: 0.75rem;
 
-    /* Corporate gradients */
+    /* Corporate gradients with professional blue tones */
     --gradient-primary: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
     --gradient-secondary: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
     --gradient-accent: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
     
-    /* Shadows */
+    /* Professional shadows */
     --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
     --shadow-elevated: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
   }
@@ -80,7 +80,7 @@
 }
 
 @layer components {
-  /* Corporate card styles */
+  /* Professional card styles */
   .card-corporate {
     @apply bg-card border border-border rounded-xl shadow-sm;
     box-shadow: var(--shadow-card);
@@ -91,7 +91,7 @@
     box-shadow: var(--shadow-elevated);
   }
 
-  /* Gradient backgrounds */
+  /* Professional gradient backgrounds */
   .bg-gradient-corporate {
     background: var(--gradient-primary);
   }
@@ -114,17 +114,17 @@
     @apply w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
   }
 
-  /* Status indicators */
+  /* Professional status indicators */
   .status-active {
-    @apply bg-emerald-100 text-emerald-800 border border-emerald-200;
+    @apply bg-emerald-50 text-emerald-700 border border-emerald-200;
   }
 
   .status-inactive {
-    @apply bg-slate-100 text-slate-600 border border-slate-200;
+    @apply bg-slate-50 text-slate-600 border border-slate-200;
   }
 
   .status-warning {
-    @apply bg-amber-100 text-amber-800 border border-amber-200;
+    @apply bg-amber-50 text-amber-700 border border-amber-200;
   }
 }
 
