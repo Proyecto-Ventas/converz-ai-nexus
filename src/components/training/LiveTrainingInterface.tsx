@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Mic, MicOff, Volume2, VolumeX, Loader2, MessageSquare, Phone, PhoneOff, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -162,10 +161,7 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
           audioRef.current.removeEventListener('error', handleAudioError);
         }
 
-        // Create and play new audio
-        const audio = new Audio(data.audioUrl);
-        audioRef.current = audio;
-        
+        // Define event handlers first
         const handleAudioEnd = () => {
           console.log('Audio playback finished');
           setIsAiSpeaking(false);
@@ -182,6 +178,10 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
           setIsAiSpeaking(false);
         };
 
+        // Create and play new audio
+        const audio = new Audio(data.audioUrl);
+        audioRef.current = audio;
+        
         audio.addEventListener('ended', handleAudioEnd);
         audio.addEventListener('error', handleAudioError);
 
