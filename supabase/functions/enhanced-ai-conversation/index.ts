@@ -8,10 +8,21 @@ const corsHeaders = {
 }
 
 interface ConversationRequest {
-  message: string;
-  sessionId: string;
-  scenario?: string;
-  context?: string;
+  messages: Array<{
+    role: 'system' | 'user' | 'assistant';
+    content: string;
+  }>;
+  scenario: {
+    title: string;
+    description: string;
+    prompt_instructions?: string;
+  };
+  knowledgeBase: Array<{
+    title: string;
+    content: string;
+    document_type: string;
+  }>;
+  evaluationMode?: boolean;
 }
 
 serve(async (req) => {
@@ -20,43 +31,50 @@ serve(async (req) => {
   }
 
   try {
-    const { message, sessionId, scenario, context }: ConversationRequest = await req.json()
+    const { messages, scenario, knowledgeBase, evaluationMode = false }: ConversationRequest = await req.json()
 
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY')
     if (!openAIApiKey) {
       throw new Error('OpenAI API key not configured')
     }
 
-    // Prompt unificado del cliente simulado
-    const unifiedPrompt = `Eres un cliente simulado diseñado para entrenar agentes de ventas en un entorno de call center. Tu objetivo es representar distintos tipos de clientes (interesado, escéptico, confundido, molesto, etc.) y evaluar las habilidades del asesor. Puedes cambiar de actitud y comportamiento durante la conversación para desafiar sus habilidades de persuasión, escucha activa, manejo de objeciones y cierre de ventas.
+    // Construir contexto de conocimiento
+    const knowledgeContext = knowledgeBase.map(kb => 
+      `[${kb.document_type}] ${kb.title}: ${kb.content}`
+    ).join('\n\n')
 
-Características clave:
-- Usa un tono natural, conversacional y creíble, como una persona real.
-- Responde con coherencia según el perfil del cliente que estás simulando.
-- Haz pausas realistas, cambios de tono, interrupciones o dudas según el caso.
-- A veces muestra interés genuino, otras veces es indiferente o molesto.
-- No sigas un guion rígido: improvisa respuestas según lo que diga el asesor.
-- Si el asesor comete errores graves, puedes expresar confusión o molestia.
-- En todo momento, tu función es ayudar a entrenar, no facilitar la venta.
+    // Sistema de prompt mejorado
+    const enhancedSystemPrompt = `
+Eres un cliente/entrevistador profesional en un escenario de entrenamiento: "${scenario.title}".
 
-Ejemplo de perfiles de cliente a simular:
-- Cliente curioso: hace muchas preguntas antes de decidirse.
-- Cliente desconfiado: duda de todo y pide pruebas o referencias.  
-- Cliente apurado: quiere todo rápido, no tolera rodeos.
-- Cliente indeciso: necesita que lo convenzan con beneficios claros.
-- Cliente molesto: comienza con una queja y hay que redirigirlo.
+DESCRIPCIÓN DEL ESCENARIO: ${scenario.description}
 
-Este sistema de entrenamiento busca preparar a asesores para el mundo real. Mantén una interpretación auténtica, desafiante y útil para el aprendizaje.
+INSTRUCCIONES ESPECÍFICAS: ${scenario.prompt_instructions || 'Mantén una conversación natural y profesional.'}
 
-INSTRUCCIONES ADICIONALES:
-- Responde SIEMPRE en español
-- Mantén respuestas de 1-3 oraciones máximo para fluidez
-- Sé consistente con el perfil de cliente elegido durante toda la conversación
-- Si es la primera interacción, selecciona aleatoriamente uno de los perfiles mencionados
+BASE DE CONOCIMIENTO DISPONIBLE:
+${knowledgeContext}
 
-${context ? `\n\nCONTEXTO ADICIONAL:\n${context}` : ''}`;
+REGLAS IMPORTANTES:
+1. SIEMPRE verifica que las respuestas del usuario estén alineadas con la base de conocimiento
+2. Si el usuario menciona información incorrecta o no verificada, señálalo de manera natural
+3. Mantén el rol del escenario en todo momento
+4. Sé conversacional pero desafiante cuando sea apropiado
+5. Presenta objeciones realistas basadas en el escenario
+6. Evalúa continuamente: conocimiento, comunicación, manejo de objeciones y profesionalismo
+7. Si detectas mentiras, información falsa o actitudes negativas, reacciona de manera realista
 
-    console.log('Processing conversation request for session:', sessionId)
+PERSONALIDAD: ${scenario.prompt_instructions || 'Profesional, inquisitivo, pero justo'}
+
+Responde SIEMPRE en español y mantén una conversación fluida y continua.
+`
+
+    // Preparar mensajes para OpenAI
+    const openAIMessages = [
+      { role: 'system', content: enhancedSystemPrompt },
+      ...messages
+    ]
+
+    console.log('Sending request to OpenAI with', openAIMessages.length, 'messages')
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -66,13 +84,10 @@ ${context ? `\n\nCONTEXTO ADICIONAL:\n${context}` : ''}`;
       },
       body: JSON.stringify({
         model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: unifiedPrompt },
-          { role: 'user', content: message }
-        ],
-        max_tokens: 800,
-        temperature: 0.8,
-        presence_penalty: 0.2,
+        messages: openAIMessages,
+        max_tokens: 1000,
+        temperature: 0.7,
+        presence_penalty: 0.1,
         frequency_penalty: 0.1,
       }),
     })
@@ -90,13 +105,42 @@ ${context ? `\n\nCONTEXTO ADICIONAL:\n${context}` : ''}`;
       throw new Error('No response from OpenAI')
     }
 
-    console.log('AI response generated successfully')
+    // Análisis en tiempo real de la respuesta del usuario
+    let realTimeAnalysis = null
+    if (messages.length > 1 && evaluationMode) {
+      const lastUserMessage = messages[messages.length - 1]?.content || ''
+      
+      // Verificar información contra base de conocimiento
+      const knowledgeCheck = knowledgeBase.some(kb => 
+        lastUserMessage.toLowerCase().includes(kb.content.toLowerCase().substring(0, 50).toLowerCase())
+      )
 
-    return new Response(JSON.stringify({ 
+      // Análisis de tono y profesionalismo
+      const negativeIndicators = ['mentira', 'falso', 'no sé', 'no me importa', 'whatever']
+      const unprofessionalTone = negativeIndicators.some(indicator => 
+        lastUserMessage.toLowerCase().includes(indicator)
+      )
+
+      realTimeAnalysis = {
+        knowledgeAccuracy: knowledgeCheck ? 'high' : 'medium',
+        professionalismLevel: unprofessionalTone ? 'low' : 'high',
+        responseQuality: lastUserMessage.length > 20 ? 'good' : 'poor',
+        suggestedImprovements: unprofessionalTone ? 
+          ['Mantén un tono más profesional', 'Evita respuestas vagas'] : 
+          ['Continúa con este nivel de profesionalismo']
+      }
+    }
+
+    const result = {
       response: aiResponse,
+      realTimeAnalysis,
       conversationContinues: true,
       timestamp: new Date().toISOString()
-    }), {
+    }
+
+    console.log('Successful AI response generated')
+
+    return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
 

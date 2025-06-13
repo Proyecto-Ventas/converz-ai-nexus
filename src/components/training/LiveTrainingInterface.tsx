@@ -12,6 +12,7 @@ interface Message {
   sender: 'user' | 'ai';
   content: string;
   timestamp: number;
+  audioUrl?: string;
 }
 
 interface LiveTrainingInterfaceProps {
@@ -36,22 +37,19 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [sessionStartTime] = useState<number>(Date.now());
+  const [isInitialized, setIsInitialized] = useState(false);
   
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const isInitializedRef = useRef(false);
+  const initializationRef = useRef(false);
   const { toast } = useToast();
 
-  // Función de limpieza mejorada
+  // Cleanup function
   const cleanup = useCallback(() => {
-    console.log('🧹 Cleaning up resources...');
+    console.log('Cleaning up resources...');
     
     if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch (e) {
-        console.log('Recognition already stopped');
-      }
+      recognitionRef.current.stop();
       recognitionRef.current = null;
     }
     
@@ -66,15 +64,15 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
     setIsProcessing(false);
   }, []);
 
-  // Inicialización única de la sesión
+  // Initialize session only once
   const initializeSession = useCallback(async () => {
-    if (isInitializedRef.current) {
-      console.log('🚫 Session already initialized');
+    if (initializationRef.current) {
+      console.log('Session already initializing or initialized');
       return;
     }
     
-    isInitializedRef.current = true;
-    console.log('🚀 Initializing training session...');
+    initializationRef.current = true;
+    console.log('Initializing training session...');
     
     try {
       const { data: user } = await supabase.auth.getUser();
@@ -87,6 +85,14 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
         return;
       }
 
+      const conversationLog = {
+        scenario_title: scenarioTitle,
+        interaction_mode: 'call',
+        session_status: 'active',
+        started_at: new Date(sessionStartTime).toISOString(),
+        total_messages: 0
+      };
+
       const { data: sessionData, error } = await supabase
         .from('training_sessions')
         .insert({
@@ -94,46 +100,41 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
           user_id: user.user.id,
           duration_minutes: 0,
           score: 0,
-          conversation_log: {
-            scenario_title: scenarioTitle,
-            interaction_mode: 'call',
-            session_status: 'active',
-            started_at: new Date(sessionStartTime).toISOString(),
-            total_messages: 0
-          }
+          conversation_log: conversationLog
         })
         .select()
         .single();
 
       if (error) {
-        console.error('❌ Error creating session:', error);
+        console.error('Error creating session:', error);
         throw error;
       }
 
-      console.log('✅ Session created:', sessionData.id);
+      console.log('Session created successfully:', sessionData.id);
       setSessionId(sessionData.id);
       setIsSessionActive(true);
+      setIsInitialized(true);
 
-      // Mensaje de bienvenida del AI
+      // Send initial AI greeting
       await sendAiGreeting(sessionData.id);
 
     } catch (error) {
-      console.error('❌ Error initializing session:', error);
-      isInitializedRef.current = false;
+      console.error('Error initializing session:', error);
+      initializationRef.current = false;
       toast({
         title: "Error",
-        description: "No se pudo inicializar la sesión",
+        description: "No se pudo inicializar la sesión de entrenamiento",
         variant: "destructive",
       });
     }
   }, [scenario, scenarioTitle, sessionStartTime, toast]);
 
-  // Saludo inicial del AI
+  // Send AI greeting
   const sendAiGreeting = async (currentSessionId: string) => {
     try {
-      console.log('👋 Sending AI greeting...');
+      console.log('Sending AI greeting...');
       
-      const greetingMessage = "¡Hola! Soy tu cliente para esta simulación de entrenamiento. Estoy interesado en conocer más sobre sus servicios. ¿Cómo me puede ayudar?";
+      const greetingMessage = `¡Hola! Soy tu cliente virtual para esta simulación: ${scenarioTitle}. Estoy aquí para practicar contigo. ¿Cómo puedo ayudarte hoy?`;
       
       const aiMessage: Message = {
         id: Date.now().toString(),
@@ -144,7 +145,6 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
 
       setMessages([aiMessage]);
 
-      // Guardar en base de datos
       await supabase
         .from('conversation_messages')
         .insert({
@@ -154,94 +154,126 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
           timestamp_in_session: 0
         });
 
-      // Generar audio
       await generateAndPlayAudio(greetingMessage);
 
     } catch (error) {
-      console.error('❌ Error sending AI greeting:', error);
+      console.error('Error sending AI greeting:', error);
     }
   };
 
-  // Generar y reproducir audio sin duplicaciones
+  // Generate and play audio
   const generateAndPlayAudio = async (text: string) => {
-    if (isAiSpeaking) {
-      console.log('🚫 AI already speaking, skipping...');
-      return;
-    }
-
     try {
       setIsAiSpeaking(true);
-      console.log('🔊 Generating audio for:', text.substring(0, 50) + '...');
+      console.log('Generating audio for:', text.substring(0, 50) + '...');
 
       const { data, error } = await supabase.functions.invoke('text-to-speech', {
         body: { text, voice: 'Sarah' }
       });
 
-      if (error || !data?.audioUrl) {
-        console.error('❌ TTS Error:', error);
+      if (error) {
+        console.error('TTS Error:', error);
         setIsAiSpeaking(false);
         return;
       }
 
-      console.log('🎵 Playing audio...');
-      
-      // Limpiar audio anterior
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-      }
+      if (data?.audioUrl) {
+        console.log('Playing audio...');
+        
+        // Clean up previous audio
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+        }
 
-      const audio = new Audio(data.audioUrl);
-      audioRef.current = audio;
-      
-      audio.onended = () => {
-        console.log('✅ Audio finished');
-        setIsAiSpeaking(false);
-        // Reiniciar escucha después de un breve delay
+        const audio = new Audio(data.audioUrl);
+        audioRef.current = audio;
+        
+        const handleAudioEnd = () => {
+          console.log('Audio playback finished');
+          setIsAiSpeaking(false);
+          // Auto-restart listening after AI speaks (with delay)
+          setTimeout(() => {
+            if (isSessionActive && !isListening) {
+              startListening();
+            }
+          }, 500);
+        };
+
+        const handleAudioError = (error: any) => {
+          console.error('Audio playback error:', error);
+          setIsAiSpeaking(false);
+        };
+
+        audio.addEventListener('ended', handleAudioEnd);
+        audio.addEventListener('error', handleAudioError);
+
+        audio.oncanplaythrough = () => {
+          console.log('Audio can play through, starting playback');
+          audio.play().catch(error => {
+            console.error('Audio play error:', error);
+            setIsAiSpeaking(false);
+          });
+        };
+
+        // Fallback timeout
         setTimeout(() => {
-          if (isSessionActive && !isListening) {
-            startListening();
+          if (isAiSpeaking) {
+            console.log('Audio timeout, stopping AI speaking state');
+            setIsAiSpeaking(false);
           }
-        }, 500);
-      };
-
-      audio.onerror = (error) => {
-        console.error('❌ Audio error:', error);
+        }, 30000);
+      } else {
         setIsAiSpeaking(false);
-      };
-
-      await audio.play();
-
+      }
     } catch (error) {
-      console.error('❌ Error in audio generation:', error);
+      console.error('Error generating/playing audio:', error);
       setIsAiSpeaking(false);
     }
   };
 
-  // Enviar mensaje al AI
+  // Send message to AI
   const sendToAI = async (userMessage: string) => {
-    if (!sessionId || isProcessing) return;
+    if (!sessionId) return;
 
     try {
       setIsProcessing(true);
-      console.log('🤖 Sending to AI:', userMessage);
+      console.log('Sending to AI:', userMessage);
+
+      const { data: knowledgeData } = await supabase
+        .from('knowledge_base')
+        .select('content, ai_summary')
+        .limit(3);
+
+      const context = knowledgeData?.map(kb => kb.ai_summary || kb.content?.substring(0, 300)).join('\n') || '';
 
       const { data, error } = await supabase.functions.invoke('enhanced-ai-conversation', {
         body: {
           message: userMessage,
           sessionId: sessionId,
           scenario: scenarioTitle,
-          context: scenarioDescription
+          context: context
         }
       });
 
       if (error) {
-        console.error('❌ AI Error:', error);
-        throw error;
+        console.error('AI Conversation Error:', error);
+        const fallbackResponse = "Entiendo tu punto. ¿Podrías contarme más detalles sobre lo que necesitas?";
+        
+        const aiMessage: Message = {
+          id: Date.now().toString(),
+          sender: 'ai',
+          content: fallbackResponse,
+          timestamp: Date.now()
+        };
+
+        setMessages(prev => [...prev, aiMessage]);
+        await generateAndPlayAudio(fallbackResponse);
+        return;
       }
 
       if (data?.response) {
-        console.log('✅ AI Response received');
+        console.log('AI Response received:', data.response.substring(0, 100) + '...');
 
         const aiMessage: Message = {
           id: Date.now().toString(),
@@ -252,7 +284,6 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
 
         setMessages(prev => [...prev, aiMessage]);
 
-        // Guardar en base de datos
         await supabase
           .from('conversation_messages')
           .insert({
@@ -262,15 +293,14 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
             timestamp_in_session: messages.length + 1
           });
 
-        // Generar audio
         await generateAndPlayAudio(data.response);
       }
 
     } catch (error) {
-      console.error('❌ Error sending to AI:', error);
+      console.error('Error sending to AI:', error);
       toast({
         title: "Error",
-        description: "Error al comunicarse con el cliente virtual",
+        description: "Error al comunicarse con el agente IA",
         variant: "destructive",
       });
     } finally {
@@ -278,19 +308,19 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
     }
   };
 
-  // Configurar reconocimiento de voz una sola vez
+  // Setup speech recognition
   const setupSpeechRecognition = useCallback(() => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
       toast({
         title: "Error",
-        description: "Reconocimiento de voz no soportado",
+        description: "Reconocimiento de voz no soportado en este navegador",
         variant: "destructive",
       });
       return;
     }
 
     if (recognitionRef.current) {
-      console.log('✅ Speech recognition already set up');
+      console.log('Speech recognition already set up');
       return;
     }
 
@@ -303,13 +333,13 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
     recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
-      console.log('🎤 Voice recognition started');
+      console.log('Voice recognition started');
       setIsListening(true);
     };
 
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
-      console.log('🗣️ Voice input:', transcript);
+      console.log('Voice input received:', transcript);
       
       if (transcript.trim()) {
         const userMessage: Message = {
@@ -321,7 +351,6 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
 
         setMessages(prev => [...prev, userMessage]);
 
-        // Guardar mensaje del usuario
         if (sessionId) {
           supabase
             .from('conversation_messages')
@@ -340,45 +369,49 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
     };
 
     recognition.onerror = (event: any) => {
-      console.error('❌ Speech recognition error:', event.error);
+      console.error('Speech recognition error:', event.error);
       setIsListening(false);
+      
+      if (event.error === 'no-speech' && isSessionActive && !isAiSpeaking) {
+        setTimeout(() => {
+          startListening();
+        }, 2000);
+      }
     };
 
     recognition.onend = () => {
-      console.log('🔇 Voice recognition ended');
+      console.log('Voice recognition ended');
       setIsListening(false);
     };
 
     recognitionRef.current = recognition;
-    console.log('✅ Speech recognition configured');
-  }, [sessionId, messages.length, toast]);
+    console.log('Speech recognition set up successfully');
+  }, [sessionId, messages.length, isSessionActive, isAiSpeaking, toast]);
 
-  // Iniciar escucha
+  // Start listening
   const startListening = useCallback(() => {
-    if (!recognitionRef.current || isListening || isAiSpeaking || !isSessionActive) {
-      return;
-    }
-
-    try {
-      console.log('🎤 Starting voice recognition...');
-      recognitionRef.current.start();
-    } catch (error) {
-      console.error('❌ Error starting recognition:', error);
+    if (recognitionRef.current && !isListening && !isAiSpeaking && isSessionActive) {
+      try {
+        console.log('Starting voice recognition...');
+        recognitionRef.current.start();
+      } catch (error) {
+        console.error('Error starting recognition:', error);
+      }
     }
   }, [isListening, isAiSpeaking, isSessionActive]);
 
-  // Detener escucha
+  // Stop listening
   const stopListening = useCallback(() => {
     if (recognitionRef.current && isListening) {
-      console.log('🔇 Stopping voice recognition...');
+      console.log('Stopping voice recognition...');
       recognitionRef.current.stop();
     }
   }, [isListening]);
 
-  // Finalizar sesión
+  // End session
   const endSession = async () => {
     try {
-      console.log('🏁 Ending session...');
+      console.log('Ending training session...');
       
       setIsSessionActive(false);
       cleanup();
@@ -386,7 +419,7 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
       if (sessionId) {
         const durationMinutes = Math.floor((Date.now() - sessionStartTime) / 60000);
         
-        await supabase
+        const { error } = await supabase
           .from('training_sessions')
           .update({
             completed_at: new Date().toISOString(),
@@ -401,11 +434,15 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
             }
           })
           .eq('id', sessionId);
+
+        if (error) {
+          console.error('Error ending session:', error);
+        }
       }
 
       toast({
         title: "Sesión Finalizada",
-        description: "Entrenamiento completado exitosamente",
+        description: "La sesión de entrenamiento ha terminado exitosamente",
       });
 
       onComplete({
@@ -415,23 +452,29 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
       });
 
     } catch (error) {
-      console.error('❌ Error ending session:', error);
+      console.error('Error ending session:', error);
     }
   };
 
-  // Efectos
+  // Initialize only once when component mounts
   useEffect(() => {
-    initializeSession();
-    return cleanup;
+    if (!isInitialized) {
+      initializeSession();
+    }
+
+    return () => {
+      cleanup();
+      initializationRef.current = false;
+    };
   }, []);
 
+  // Set up speech recognition only when session is active
   useEffect(() => {
-    if (isSessionActive) {
+    if (isSessionActive && !recognitionRef.current) {
       setupSpeechRecognition();
     }
   }, [isSessionActive, setupSpeechRecognition]);
 
-  // Función para formatear duración
   const formatDuration = (startTime: number) => {
     const duration = Math.floor((Date.now() - startTime) / 1000);
     const minutes = Math.floor(duration / 60);
@@ -440,10 +483,10 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-white p-4">
+    <div className="min-h-screen bg-background p-4">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
-        <Card className="bg-white border border-gray-200 shadow-sm">
+        <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
@@ -457,14 +500,14 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
                   <span>Volver</span>
                 </Button>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Entrenamiento de Ventas</h1>
-                  <p className="text-gray-600 mt-1">Simulación con cliente virtual</p>
+                  <h1 className="text-2xl font-bold">{scenarioTitle}</h1>
+                  <p className="text-muted-foreground mt-1">{scenarioDescription}</p>
                 </div>
               </div>
               <div className="flex items-center space-x-4">
                 <div className="text-right">
-                  <div className="text-sm text-gray-500">Duración</div>
-                  <div className="text-lg font-mono font-bold text-gray-900">
+                  <div className="text-sm text-muted-foreground">Duración</div>
+                  <div className="text-lg font-mono font-bold">
                     {formatDuration(sessionStartTime)}
                   </div>
                 </div>
@@ -488,26 +531,24 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
         </Card>
 
         {/* Control Panel */}
-        <Card className="bg-white border border-gray-200 shadow-sm">
-          <CardContent className="p-8">
+        <Card>
+          <CardContent className="p-6">
             <div className="flex items-center justify-center">
-              <div className="flex items-center space-x-12">
+              <div className="flex items-center space-x-8">
                 {/* Microphone status */}
-                <div className="flex flex-col items-center space-y-3">
-                  <div className={`p-4 rounded-full transition-all ${
-                    isListening ? 'bg-green-100 border-2 border-green-400 shadow-lg' : 'bg-gray-100'
-                  }`}>
+                <div className="flex flex-col items-center space-y-2">
+                  <div className={`p-4 rounded-full ${isListening ? 'bg-green-100 border-2 border-green-300' : 'bg-muted'}`}>
                     {isListening ? (
                       <Mic className="h-8 w-8 text-green-600 animate-pulse" />
                     ) : (
-                      <MicOff className="h-8 w-8 text-gray-400" />
+                      <MicOff className="h-8 w-8 text-muted-foreground" />
                     )}
                   </div>
                   <div className="text-center">
-                    <div className="text-sm font-medium text-gray-900">
+                    <div className="text-sm font-medium">
                       {isListening ? 'Escuchando' : 'En Espera'}
                     </div>
-                    <div className="text-xs text-gray-500">Micrófono</div>
+                    <div className="text-xs text-muted-foreground">Micrófono</div>
                   </div>
                 </div>
 
@@ -517,53 +558,51 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
                     onClick={isListening ? stopListening : startListening}
                     disabled={isAiSpeaking || !isSessionActive}
                     size="lg"
-                    className={`h-20 w-20 rounded-full transition-all shadow-lg ${
+                    className={`h-16 w-16 rounded-full ${
                       isListening 
-                        ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
-                        : 'bg-blue-600 hover:bg-blue-700'
+                        ? 'bg-red-500 hover:bg-red-600' 
+                        : 'bg-primary hover:bg-primary/90'
                     }`}
                   >
-                    <Phone className="h-10 w-10" />
+                    <Phone className="h-8 w-8" />
                   </Button>
-                  <span className="text-sm font-medium text-gray-700">
+                  <span className="text-sm font-medium">
                     {isListening ? 'Presiona para detener' : 'Presiona para hablar'}
                   </span>
                 </div>
 
                 {/* AI status */}
-                <div className="flex flex-col items-center space-y-3">
-                  <div className={`p-4 rounded-full transition-all ${
-                    isAiSpeaking ? 'bg-blue-100 border-2 border-blue-400 shadow-lg' : 'bg-gray-100'
-                  }`}>
+                <div className="flex flex-col items-center space-y-2">
+                  <div className={`p-4 rounded-full ${isAiSpeaking ? 'bg-blue-100 border-2 border-blue-300' : 'bg-muted'}`}>
                     {isAiSpeaking ? (
                       <Volume2 className="h-8 w-8 text-blue-600 animate-pulse" />
                     ) : (
-                      <VolumeX className="h-8 w-8 text-gray-400" />
+                      <VolumeX className="h-8 w-8 text-muted-foreground" />
                     )}
                   </div>
                   <div className="text-center">
-                    <div className="text-sm font-medium text-gray-900">
-                      {isAiSpeaking ? 'Cliente Hablando' : 'Cliente Silencioso'}
+                    <div className="text-sm font-medium">
+                      {isAiSpeaking ? 'IA Hablando' : 'IA Silenciosa'}
                     </div>
-                    <div className="text-xs text-gray-500">Audio</div>
+                    <div className="text-xs text-muted-foreground">Audio</div>
                   </div>
                 </div>
               </div>
             </div>
 
             {isProcessing && (
-              <div className="flex items-center justify-center mt-6 p-4 bg-blue-50 rounded-lg">
-                <Loader2 className="h-5 w-5 animate-spin text-blue-600 mr-3" />
-                <span className="text-sm font-medium text-blue-700">Procesando respuesta del cliente...</span>
+              <div className="flex items-center justify-center mt-4 p-3 bg-blue-50 rounded-lg">
+                <Loader2 className="h-5 w-5 animate-spin text-blue-600 mr-2" />
+                <span className="text-sm font-medium text-blue-700">Procesando respuesta...</span>
               </div>
             )}
           </CardContent>
         </Card>
 
         {/* Conversation Display */}
-        <Card className="bg-white border border-gray-200 shadow-sm">
-          <CardHeader className="border-b border-gray-100">
-            <CardTitle className="flex items-center space-x-2 text-gray-900">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
               <MessageSquare className="h-5 w-5" />
               <span>Conversación en Tiempo Real</span>
               <Badge variant="secondary" className="ml-auto">
@@ -572,12 +611,12 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="h-96 overflow-y-auto p-6 space-y-4 bg-gray-50">
+            <div className="h-96 overflow-y-auto p-6 space-y-4 bg-muted/30">
               {messages.length === 0 ? (
                 <div className="text-center py-12">
-                  <MessageSquare className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                  <p className="text-gray-500 text-lg">Iniciando conversación...</p>
-                  <p className="text-gray-400 text-sm mt-2">La conversación aparecerá aquí</p>
+                  <MessageSquare className="h-16 w-16 mx-auto mb-4 text-muted-foreground/50" />
+                  <p className="text-muted-foreground text-lg">Iniciando conversación...</p>
+                  <p className="text-muted-foreground/70 text-sm mt-2">La conversación aparecerá aquí</p>
                 </div>
               ) : (
                 messages.map((message) => (
@@ -588,13 +627,13 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
                     <div
                       className={`max-w-md px-4 py-3 rounded-2xl ${
                         message.sender === 'user'
-                          ? 'bg-blue-600 text-white rounded-br-md'
-                          : 'bg-white text-gray-900 border border-gray-200 rounded-bl-md shadow-sm'
+                          ? 'bg-primary text-primary-foreground rounded-br-md'
+                          : 'bg-card text-card-foreground border border-border rounded-bl-md shadow-sm'
                       }`}
                     >
                       <p className="text-sm leading-relaxed">{message.content}</p>
                       <span className={`text-xs mt-2 block ${
-                        message.sender === 'user' ? 'text-blue-100' : 'text-gray-500'
+                        message.sender === 'user' ? 'text-primary-foreground/70' : 'text-muted-foreground'
                       }`}>
                         {new Date(message.timestamp).toLocaleTimeString()}
                       </span>
@@ -607,17 +646,17 @@ const LiveTrainingInterface: React.FC<LiveTrainingInterfaceProps> = ({
         </Card>
 
         {/* Status Bar */}
-        <Card className="bg-white border border-gray-200 shadow-sm">
+        <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-center space-x-6 text-sm">
               <div className="flex items-center space-x-2">
-                <div className={`w-2 h-2 rounded-full ${isSessionActive ? 'bg-green-500' : 'bg-gray-400'}`} />
-                <span className="text-gray-600">
+                <div className={`w-2 h-2 rounded-full ${isSessionActive ? 'bg-green-500' : 'bg-muted-foreground'}`} />
+                <span className="text-muted-foreground">
                   {isSessionActive ? 'Sesión activa - Habla naturalmente' : 'Sesión inactiva'}
                 </span>
               </div>
-              <div className="text-gray-300">•</div>
-              <span className="text-gray-600">
+              <div className="text-muted-foreground">•</div>
+              <span className="text-muted-foreground">
                 Reconocimiento de voz en español
               </span>
             </div>
