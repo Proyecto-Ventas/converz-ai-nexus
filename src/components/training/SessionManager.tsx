@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -42,6 +41,8 @@ interface SessionEvaluation extends DbSessionEvaluation {}
 export class SessionManager {
   private static instance: SessionManager;
   private currentSession: SessionData | null = null;
+  private messageCounter: number = 0;
+  private sessionStartTime: number = 0;
   private toast: any;
   private userId: string | null = null;
 
@@ -75,6 +76,9 @@ export class SessionManager {
     }
 
     try {
+      this.sessionStartTime = Date.now();
+      this.messageCounter = 0;
+      
       console.log('SessionManager: Creating session for user:', this.userId);
       
       const conversationLog = {
@@ -86,7 +90,8 @@ export class SessionManager {
         started_at: new Date().toISOString(),
         total_messages: 0,
         user_words_count: 0,
-        ai_words_count: 0
+        ai_words_count: 0,
+        messages: []
       };
 
       const sessionData: DbTrainingSessionInsert = {
@@ -145,7 +150,10 @@ export class SessionManager {
     }
 
     try {
-      const { error } = await supabase
+      this.messageCounter++;
+      
+      // Guardar en conversation_messages
+      const { error: messageError } = await supabase
         .from('conversation_messages')
         .insert({
           session_id: sessionId,
@@ -154,10 +162,49 @@ export class SessionManager {
           timestamp_in_session: timestampInSession
         });
 
-      if (error) {
-        console.error('SessionManager: Error saving message:', error);
-        throw error;
+      if (messageError) {
+        console.error('SessionManager: Error saving message:', messageError);
+        throw messageError;
       }
+
+      // Actualizar conversation_log en training_sessions
+      if (this.currentSession) {
+        const updatedLog = {
+          ...this.currentSession.conversation_log as any,
+          total_messages: this.messageCounter,
+          messages: [
+            ...((this.currentSession.conversation_log as any)?.messages || []),
+            {
+              content,
+              sender,
+              timestamp: new Date().toISOString(),
+              timestampInSession
+            }
+          ]
+        };
+
+        // Contar palabras
+        const wordCount = content.split(' ').length;
+        if (sender === 'user') {
+          updatedLog.user_words_count = (updatedLog.user_words_count || 0) + wordCount;
+        } else {
+          updatedLog.ai_words_count = (updatedLog.ai_words_count || 0) + wordCount;
+        }
+
+        await supabase
+          .from('training_sessions')
+          .update({
+            conversation_log: updatedLog,
+            total_messages: this.messageCounter,
+            user_words_count: updatedLog.user_words_count,
+            ai_words_count: updatedLog.ai_words_count
+          })
+          .eq('id', sessionId);
+
+        this.currentSession.conversation_log = updatedLog;
+      }
+
+      console.log('SessionManager: Message saved successfully');
     } catch (error) {
       console.error('SessionManager: Error in saveMessage:', error);
     }
@@ -195,13 +242,17 @@ export class SessionManager {
 
     try {
       const endTime = new Date().toISOString();
+      const duration = Math.floor((Date.now() - this.sessionStartTime) / 1000);
+      const durationMinutes = Math.floor(duration / 60);
+      
       const currentSession = this.currentSession;
       
       if (currentSession?.conversation_log) {
         const updatedConversationLog = {
           ...currentSession.conversation_log as any,
           session_status: 'completed',
-          ended_at: endTime
+          ended_at: endTime,
+          duration_seconds: duration
         };
 
         const { error } = await supabase
@@ -209,6 +260,8 @@ export class SessionManager {
           .update({
             completed_at: endTime,
             score: finalScore,
+            duration_minutes: durationMinutes,
+            duration_seconds: duration,
             conversation_log: updatedConversationLog
           })
           .eq('id', sessionId);
@@ -219,6 +272,8 @@ export class SessionManager {
         }
 
         this.currentSession = null;
+        this.messageCounter = 0;
+        this.sessionStartTime = 0;
         console.log('SessionManager: Session ended successfully');
       }
     } catch (error) {
@@ -226,19 +281,32 @@ export class SessionManager {
     }
   }
 
-  async saveEvaluation(sessionId: string, evaluation: Partial<SessionEvaluation>): Promise<void> {
+  async saveEvaluation(sessionId: string, evaluation: any): Promise<void> {
     try {
+      // Asegurar que las puntuaciones estén en escala 0-100
+      const normalizedEvaluation = {
+        session_id: sessionId,
+        overall_score: Math.min(100, Math.max(0, evaluation.overall_score || 0)),
+        rapport_score: Math.min(100, Math.max(0, evaluation.rapport_score || 0)),
+        clarity_score: Math.min(100, Math.max(0, evaluation.clarity_score || 0)),
+        empathy_score: Math.min(100, Math.max(0, evaluation.empathy_score || 0)),
+        accuracy_score: Math.min(100, Math.max(0, evaluation.accuracy_score || 0)),
+        strengths: evaluation.strengths || [],
+        improvements: evaluation.improvements || [],
+        specific_feedback: evaluation.specific_feedback || '',
+        ai_analysis: evaluation.ai_analysis || {}
+      };
+
       const { error } = await supabase
         .from('session_evaluations')
-        .insert({
-          session_id: sessionId,
-          ...evaluation
-        });
+        .insert(normalizedEvaluation);
 
       if (error) {
         console.error('SessionManager: Error saving evaluation:', error);
         throw error;
       }
+
+      console.log('SessionManager: Evaluation saved successfully');
     } catch (error) {
       console.error('SessionManager: Error in saveEvaluation:', error);
     }
@@ -284,10 +352,10 @@ export class SessionManager {
         session_status: (session.conversation_log as any)?.session_status || 'completed',
         started_at: (session.conversation_log as any)?.started_at,
         ended_at: (session.conversation_log as any)?.ended_at,
-        duration_seconds: session.duration_minutes ? session.duration_minutes * 60 : 0,
-        total_messages: (session.conversation_log as any)?.total_messages || 0,
-        user_words_count: (session.conversation_log as any)?.user_words_count || 0,
-        ai_words_count: (session.conversation_log as any)?.ai_words_count || 0
+        duration_seconds: session.duration_seconds || (session.duration_minutes ? session.duration_minutes * 60 : 0),
+        total_messages: session.total_messages || (session.conversation_log as any)?.total_messages || 0,
+        user_words_count: session.user_words_count || (session.conversation_log as any)?.user_words_count || 0,
+        ai_words_count: session.ai_words_count || (session.conversation_log as any)?.ai_words_count || 0
       })) as SessionData[];
     } catch (error) {
       console.error('SessionManager: Error in getUserSessions:', error);
@@ -340,6 +408,15 @@ export class SessionManager {
 
   getCurrentSession(): SessionData | null {
     return this.currentSession;
+  }
+
+  getSessionDuration(): number {
+    if (this.sessionStartTime === 0) return 0;
+    return Math.floor((Date.now() - this.sessionStartTime) / 1000);
+  }
+
+  getMessageCount(): number {
+    return this.messageCounter;
   }
 }
 
