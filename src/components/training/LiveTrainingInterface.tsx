@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -84,7 +83,8 @@ const LiveTrainingInterface = ({
     };
 
     recognition.onresult = (event) => {
-      const transcript = event.results[0].transcript;
+      // Corrección del error TypeScript: acceder correctamente a la transcripción
+      const transcript = event.results[0][0].transcript;
       if (transcript.trim()) {
         handleUserMessage(transcript.trim());
       }
