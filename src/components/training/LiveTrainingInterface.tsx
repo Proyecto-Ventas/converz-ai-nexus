@@ -1,13 +1,17 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Mic, MicOff, MessageSquare, Phone, ArrowLeft, Volume2, Loader2 } from 'lucide-react';
+import { Mic, MicOff, MessageSquare, Phone, ArrowLeft, Volume2, Loader2, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useSessionManager } from './SessionManager';
 import ChatInterface from './ChatInterface';
+import VoiceSelectorSimple from '@/components/voices/VoiceSelectorSimple';
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
+import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 
 interface LiveTrainingInterfaceProps {
   scenario: string;
@@ -36,18 +40,39 @@ const LiveTrainingInterface = ({
   const [messages, setMessages] = useState<Message[]>([]);
   const [interactionMode, setInteractionMode] = useState<'chat' | 'voice'>('chat');
   const [clientPersonality, setClientPersonality] = useState('neutral');
-  const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [selectedVoice, setSelectedVoice] = useState<string>('');
+  const [selectedVoiceName, setSelectedVoiceName] = useState<string>('Sarah');
+  const [showVoiceSelector, setShowVoiceSelector] = useState(false);
 
   // Referencias
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const sessionStartTime = useRef<Date | null>(null);
+  const conversationInProgress = useRef(false);
 
   // Hooks
   const { toast } = useToast();
   const sessionManager = useSessionManager();
+
+  // Speech recognition hook
+  const { isListening, startListening, stopListening } = useSpeechRecognition({
+    onResult: handleSpeechResult,
+    language: 'es-ES',
+    continuous: false
+  });
+
+  // Audio player hook
+  const { isPlaying, playAudio, stopAudio } = useAudioPlayer({
+    onAudioEnd: () => {
+      if (interactionMode === 'voice' && isActive && !conversationInProgress.current) {
+        setTimeout(() => {
+          if (!isProcessing) {
+            startListening();
+          }
+        }, 500);
+      }
+    }
+  });
 
   // Configuración de personalidades
   const personalities = [
@@ -60,55 +85,37 @@ const LiveTrainingInterface = ({
     { value: 'interested', label: 'Interesado', color: 'bg-green-100 text-green-700' }
   ];
 
-  // Inicializar reconocimiento de voz
-  const initializeSpeechRecognition = useCallback(() => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      toast({
-        title: "Error",
-        description: "Tu navegador no soporta reconocimiento de voz",
-        variant: "destructive",
-      });
-      return false;
+  // Cargar preferencias guardadas
+  useEffect(() => {
+    const savedVoice = localStorage.getItem('selectedVoice');
+    const savedVoiceName = localStorage.getItem('selectedVoiceName');
+    const savedPersonality = localStorage.getItem('clientPersonality');
+    const savedMode = localStorage.getItem('interactionMode');
+
+    if (savedVoice) setSelectedVoice(savedVoice);
+    if (savedVoiceName) setSelectedVoiceName(savedVoiceName);
+    if (savedPersonality) setClientPersonality(savedPersonality);
+    if (savedMode) setInteractionMode(savedMode as 'chat' | 'voice');
+  }, []);
+
+  // Guardar preferencias
+  const savePreferences = useCallback(() => {
+    localStorage.setItem('selectedVoice', selectedVoice);
+    localStorage.setItem('selectedVoiceName', selectedVoiceName);
+    localStorage.setItem('clientPersonality', clientPersonality);
+    localStorage.setItem('interactionMode', interactionMode);
+  }, [selectedVoice, selectedVoiceName, clientPersonality, interactionMode]);
+
+  useEffect(() => {
+    savePreferences();
+  }, [savePreferences]);
+
+  // Manejar resultado del reconocimiento de voz
+  function handleSpeechResult(transcript: string) {
+    if (transcript.trim() && !isProcessing) {
+      handleUserMessage(transcript.trim());
     }
-
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = 'es-ES';
-
-    recognition.onstart = () => {
-      setIsListening(true);
-    };
-
-    recognition.onresult = (event) => {
-      // Corrección del error TypeScript: acceder correctamente a la transcripción
-      const transcript = event.results[0][0].transcript;
-      if (transcript.trim()) {
-        handleUserMessage(transcript.trim());
-      }
-    };
-
-    recognition.onerror = (event) => {
-      console.error('Speech recognition error:', event.error);
-      setIsListening(false);
-      if (event.error !== 'aborted' && event.error !== 'no-speech') {
-        toast({
-          title: "Error de reconocimiento",
-          description: "No se pudo procesar el audio. Intenta de nuevo.",
-          variant: "destructive",
-        });
-      }
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    recognitionRef.current = recognition;
-    return true;
-  }, [toast]);
+  }
 
   // Obtener datos del escenario
   const getScenarioData = useCallback(async () => {
@@ -153,7 +160,12 @@ const LiveTrainingInterface = ({
   const handleUserMessage = async (content: string) => {
     if (isProcessing || !isActive) return;
 
+    conversationInProgress.current = true;
     setIsProcessing(true);
+    
+    // Detener audio y reconocimiento
+    if (isPlaying) stopAudio();
+    if (isListening) stopListening();
     
     // Agregar mensaje del usuario
     const userMessage: Message = {
@@ -224,7 +236,7 @@ const LiveTrainingInterface = ({
 
         // Reproducir audio si está en modo voz
         if (interactionMode === 'voice') {
-          await playAIResponse(aiResponse);
+          await playAudio(aiResponse, selectedVoiceName);
         }
       }
     } catch (error) {
@@ -236,64 +248,7 @@ const LiveTrainingInterface = ({
       });
     } finally {
       setIsProcessing(false);
-    }
-  };
-
-  // Reproducir respuesta de la IA
-  const playAIResponse = async (text: string) => {
-    try {
-      const { data, error } = await supabase.functions.invoke('text-to-speech', {
-        body: {
-          text,
-          voice: 'Sarah', // Voz por defecto
-          model_id: 'eleven_monolingual_v1'
-        }
-      });
-
-      if (error) throw error;
-
-      if (data.audioUrl) {
-        const audio = new Audio(data.audioUrl);
-        audioRef.current = audio;
-        
-        audio.onended = () => {
-          // Reiniciar reconocimiento de voz después de que termine el audio
-          if (interactionMode === 'voice' && isActive) {
-            setTimeout(() => {
-              startListening();
-            }, 500);
-          }
-        };
-        
-        await audio.play();
-      }
-    } catch (error) {
-      console.error('Error playing AI response:', error);
-    }
-  };
-
-  // Iniciar/detener escucha
-  const toggleListening = () => {
-    if (isListening) {
-      stopListening();
-    } else {
-      startListening();
-    }
-  };
-
-  const startListening = () => {
-    if (recognitionRef.current && !isListening && !isProcessing) {
-      try {
-        recognitionRef.current.start();
-      } catch (error) {
-        console.error('Error starting recognition:', error);
-      }
-    }
-  };
-
-  const stopListening = () => {
-    if (recognitionRef.current && isListening) {
-      recognitionRef.current.stop();
+      conversationInProgress.current = false;
     }
   };
 
@@ -304,7 +259,9 @@ const LiveTrainingInterface = ({
         scenario,
         scenarioTitle,
         clientPersonality,
-        interactionMode
+        interactionMode,
+        selectedVoice,
+        selectedVoiceName
       };
 
       const newSessionId = await sessionManager.startSession(sessionConfig);
@@ -324,7 +281,7 @@ const LiveTrainingInterface = ({
         setMessages([welcomeMessage]);
 
         if (interactionMode === 'voice') {
-          await playAIResponse(welcomeMessage.content);
+          await playAudio(welcomeMessage.content, selectedVoiceName);
         }
 
         toast({
@@ -346,13 +303,11 @@ const LiveTrainingInterface = ({
   const endTraining = async () => {
     setIsActive(false);
     stopListening();
-
-    if (audioRef.current) {
-      audioRef.current.pause();
-    }
+    stopAudio();
+    conversationInProgress.current = false;
 
     if (sessionId) {
-      const finalScore = Math.floor(Math.random() * 40) + 60; // Score simulado
+      const finalScore = Math.floor(Math.random() * 40) + 60;
       await sessionManager.endSession(sessionId, finalScore);
 
       const evaluation = {
@@ -362,51 +317,44 @@ const LiveTrainingInterface = ({
         duration: sessionStartTime.current ? 
           Math.floor((Date.now() - sessionStartTime.current.getTime()) / 1000) : 0,
         clientPersonality,
-        interactionMode
+        interactionMode,
+        selectedVoice,
+        selectedVoiceName
       };
 
       onComplete(evaluation);
     }
   };
 
-  // Efectos
-  useEffect(() => {
-    if (interactionMode === 'voice') {
-      initializeSpeechRecognition();
-    }
-    
-    return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
-    };
-  }, [interactionMode, initializeSpeechRecognition]);
+  // Manejar selección de voz
+  const handleVoiceSelect = (voiceId: string, voiceName: string) => {
+    setSelectedVoice(voiceId);
+    setSelectedVoiceName(voiceName);
+    setShowVoiceSelector(false);
+  };
 
   const selectedPersonality = personalities.find(p => p.value === clientPersonality);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <Button variant="outline" onClick={onBack} className="flex items-center gap-2">
-            <ArrowLeft className="h-4 w-4" />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-3">
+      <div className="max-w-7xl mx-auto">
+        {/* Header compacto */}
+        <div className="flex items-center justify-between mb-4 bg-white rounded-lg p-3 shadow-sm">
+          <Button variant="outline" onClick={onBack} size="sm">
+            <ArrowLeft className="h-4 w-4 mr-1" />
             Volver
           </Button>
           
-          <div className="flex items-center gap-4">
-            <Badge className={selectedPersonality?.color}>
-              Cliente: {selectedPersonality?.label}
+          <div className="flex items-center gap-2">
+            <Badge className={selectedPersonality?.color} variant="secondary">
+              {selectedPersonality?.label}
             </Badge>
             <Badge variant="outline">
               {interactionMode === 'voice' ? <Phone className="h-3 w-3 mr-1" /> : <MessageSquare className="h-3 w-3 mr-1" />}
               {interactionMode === 'voice' ? 'Voz' : 'Chat'}
             </Badge>
             {isActive && (
-              <Badge variant="default" className="bg-green-100 text-green-700">
+              <Badge className="bg-green-100 text-green-700">
                 En vivo
               </Badge>
             )}
@@ -414,64 +362,122 @@ const LiveTrainingInterface = ({
         </div>
 
         {!isActive ? (
-          // Configuración inicial
-          <Card className="max-w-2xl mx-auto">
-            <CardHeader>
-              <CardTitle className="text-center">Configurar Entrenamiento</CardTitle>
-              <div className="text-center">
-                <h2 className="text-xl font-semibold text-slate-900">{scenarioTitle}</h2>
-                <p className="text-slate-600 mt-2">{scenarioDescription}</p>
-              </div>
-            </CardHeader>
-            
-            <CardContent className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium mb-2">Modo de Interacción</label>
-                <Select value={interactionMode} onValueChange={(value: 'chat' | 'voice') => setInteractionMode(value)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="chat">
-                      <div className="flex items-center">
-                        <MessageSquare className="h-4 w-4 mr-2" />
-                        Chat (Texto)
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="voice">
-                      <div className="flex items-center">
-                        <Phone className="h-4 w-4 mr-2" />
-                        Voz (Audio)
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+          // Configuración inicial compacta
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="lg:col-span-2">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">{scenarioTitle}</CardTitle>
+                  <p className="text-sm text-slate-600">{scenarioDescription}</p>
+                </CardHeader>
+                
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Modo</label>
+                      <Select value={interactionMode} onValueChange={(value: 'chat' | 'voice') => setInteractionMode(value)}>
+                        <SelectTrigger className="h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="chat">
+                            <div className="flex items-center">
+                              <MessageSquare className="h-4 w-4 mr-2" />
+                              Chat
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="voice">
+                            <div className="flex items-center">
+                              <Phone className="h-4 w-4 mr-2" />
+                              Voz
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">Personalidad del Cliente</label>
-                <Select value={clientPersonality} onValueChange={setClientPersonality}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {personalities.map((personality) => (
-                      <SelectItem key={personality.value} value={personality.value}>
-                        {personality.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Cliente</label>
+                      <Select value={clientPersonality} onValueChange={setClientPersonality}>
+                        <SelectTrigger className="h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {personalities.map((personality) => (
+                            <SelectItem key={personality.value} value={personality.value}>
+                              {personality.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
 
-              <Button onClick={startTraining} className="w-full" size="lg">
-                Iniciar Entrenamiento
-              </Button>
-            </CardContent>
-          </Card>
+                  {interactionMode === 'voice' && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="block text-sm font-medium">Voz del Agente</label>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowVoiceSelector(!showVoiceSelector)}
+                        >
+                          <Settings className="h-4 w-4 mr-1" />
+                          {selectedVoiceName || 'Seleccionar'}
+                        </Button>
+                      </div>
+                      
+                      {showVoiceSelector && (
+                        <div className="border rounded-lg p-3 bg-slate-50">
+                          <VoiceSelectorSimple
+                            selectedVoice={selectedVoice}
+                            onVoiceSelect={handleVoiceSelect}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <Button onClick={startTraining} className="w-full" size="lg">
+                    Iniciar Entrenamiento
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div>
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">Cómo funciona</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 text-xs">
+                  <div className="flex items-start space-x-2">
+                    <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-blue-600 font-semibold text-xs">1</span>
+                    </div>
+                    <span>Configura el modo y personalidad</span>
+                  </div>
+                  
+                  <div className="flex items-start space-x-2">
+                    <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-blue-600 font-semibold text-xs">2</span>
+                    </div>
+                    <span>Practica en tiempo real</span>
+                  </div>
+                  
+                  <div className="flex items-start space-x-2">
+                    <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-blue-600 font-semibold text-xs">3</span>
+                    </div>
+                    <span>Recibe evaluación detallada</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         ) : (
-          // Interfaz de entrenamiento activa
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-200px)]">
+          // Interfaz de entrenamiento activa compacta
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 h-[calc(100vh-160px)]">
             {/* Panel de conversación */}
             <div className="lg:col-span-3">
               {interactionMode === 'chat' ? (
@@ -483,8 +489,8 @@ const LiveTrainingInterface = ({
                 />
               ) : (
                 <Card className="h-full flex flex-col">
-                  <CardHeader>
-                    <CardTitle className="flex items-center justify-between">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center justify-between text-base">
                       <span>Entrenamiento por Voz</span>
                       <div className="flex items-center gap-2">
                         <Volume2 className="h-4 w-4" />
@@ -493,18 +499,18 @@ const LiveTrainingInterface = ({
                     </CardTitle>
                   </CardHeader>
                   
-                  <CardContent className="flex-1 flex flex-col">
-                    <div className="flex-1 overflow-y-auto mb-4 space-y-4">
+                  <CardContent className="flex-1 flex flex-col p-4">
+                    <div className="flex-1 overflow-y-auto mb-4 space-y-3">
                       {messages.map((message) => (
                         <div
                           key={message.id}
-                          className={`p-3 rounded-lg max-w-[80%] ${
+                          className={`p-3 rounded-lg max-w-[85%] ${
                             message.sender === 'user'
                               ? 'bg-blue-500 text-white ml-auto'
                               : 'bg-gray-100 text-gray-900'
                           }`}
                         >
-                          <p>{message.content}</p>
+                          <p className="text-sm">{message.content}</p>
                           <span className="text-xs opacity-70">
                             {message.timestamp.toLocaleTimeString()}
                           </span>
@@ -514,23 +520,25 @@ const LiveTrainingInterface = ({
                     
                     <div className="text-center">
                       <Button
-                        onClick={toggleListening}
-                        disabled={isProcessing}
+                        onClick={() => isListening ? stopListening() : startListening()}
+                        disabled={isProcessing || isPlaying}
                         size="lg"
-                        className={`w-20 h-20 rounded-full ${
+                        className={`w-16 h-16 rounded-full ${
                           isListening ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'
                         }`}
                       >
-                        {isProcessing ? (
-                          <Loader2 className="h-8 w-8 animate-spin" />
+                        {isProcessing || isPlaying ? (
+                          <Loader2 className="h-6 w-6 animate-spin" />
                         ) : isListening ? (
-                          <MicOff className="h-8 w-8" />
+                          <MicOff className="h-6 w-6" />
                         ) : (
-                          <Mic className="h-8 w-8" />
+                          <Mic className="h-6 w-6" />
                         )}
                       </Button>
-                      <p className="text-sm text-gray-600 mt-2">
-                        {isProcessing ? 'Procesando...' : isListening ? 'Escuchando...' : 'Presiona para hablar'}
+                      <p className="text-xs text-gray-600 mt-2">
+                        {isProcessing ? 'Procesando...' : 
+                         isPlaying ? 'Reproduciendo...' :
+                         isListening ? 'Escuchando...' : 'Presiona para hablar'}
                       </p>
                     </div>
                   </CardContent>
@@ -538,13 +546,13 @@ const LiveTrainingInterface = ({
               )}
             </div>
 
-            {/* Panel de control */}
-            <div className="space-y-4">
+            {/* Panel de control compacto */}
+            <div className="space-y-3">
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">Estado de la Sesión</CardTitle>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Estado</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 text-sm">
+                <CardContent className="space-y-2 text-xs">
                   <div className="flex justify-between">
                     <span>Mensajes:</span>
                     <span>{messages.length}</span>
@@ -558,6 +566,12 @@ const LiveTrainingInterface = ({
                       }
                     </span>
                   </div>
+                  {interactionMode === 'voice' && (
+                    <div className="flex justify-between">
+                      <span>Voz:</span>
+                      <span className="text-xs">{selectedVoiceName}</span>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -565,8 +579,9 @@ const LiveTrainingInterface = ({
                 onClick={endTraining} 
                 variant="destructive" 
                 className="w-full"
+                size="sm"
               >
-                Finalizar Entrenamiento
+                Finalizar
               </Button>
             </div>
           </div>

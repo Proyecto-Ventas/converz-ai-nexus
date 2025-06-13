@@ -66,108 +66,80 @@ const Training = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8 text-center">
-          <div className="inline-flex items-center justify-center p-3 bg-blue-100 rounded-full mb-4">
-            <Zap className="h-8 w-8 text-blue-600" />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4">
+      <div className="max-w-6xl mx-auto">
+        {/* Header compacto */}
+        <div className="mb-6 text-center">
+          <div className="inline-flex items-center justify-center p-2 bg-blue-100 rounded-full mb-3">
+            <Zap className="h-6 w-6 text-blue-600" />
           </div>
-          <h1 className="text-4xl font-bold text-slate-900 mb-3">
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">
             Centro de Entrenamiento IA
           </h1>
-          <p className="text-xl text-slate-600 max-w-2xl mx-auto">
-            Mejora tus habilidades de comunicación con simulaciones realistas impulsadas por IA
+          <p className="text-lg text-slate-600 max-w-2xl mx-auto">
+            Mejora tus habilidades de comunicación con simulaciones realistas
           </p>
         </div>
 
         {!selectedScenario ? (
-          // Vista de selección de escenarios
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2">
-              <Card className="bg-white shadow-sm border border-slate-200">
-                <CardHeader className="border-b border-slate-100">
+          // Vista de selección de escenarios compacta
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <div className="lg:col-span-3">
+              <Card className="bg-white shadow-sm">
+                <CardHeader className="pb-4">
                   <CardTitle className="text-xl text-slate-900">
-                    Selecciona tu Escenario de Entrenamiento
+                    Selecciona tu Escenario
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="p-6">
+                <CardContent>
                   <EnhancedScenarioSelector onSelectScenario={handleScenarioSelect} />
                 </CardContent>
               </Card>
             </div>
 
-            <div className="space-y-6">
-              <Card className="bg-white shadow-sm border border-slate-200">
-                <CardHeader className="border-b border-slate-100">
-                  <CardTitle className="text-slate-900">¿Cómo funciona?</CardTitle>
+            <div>
+              <Card className="bg-white shadow-sm">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-slate-900 text-base">¿Cómo funciona?</CardTitle>
                 </CardHeader>
-                <CardContent className="p-6">
-                  <div className="space-y-4 text-sm">
-                    <div className="flex items-start space-x-3">
-                      <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span className="text-blue-600 font-semibold text-xs">1</span>
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-slate-900">Elige tu escenario</h4>
-                        <p className="text-slate-600">Selecciona el tipo de entrenamiento que deseas practicar</p>
-                      </div>
+                <CardContent className="space-y-3 text-sm">
+                  <div className="flex items-start space-x-2">
+                    <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-blue-600 font-semibold text-xs">1</span>
                     </div>
-                    
-                    <div className="flex items-start space-x-3">
-                      <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span className="text-blue-600 font-semibold text-xs">2</span>
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-slate-900">Configura tu cliente</h4>
-                        <p className="text-slate-600">Elige la personalidad y modo de interacción</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-start space-x-3">
-                      <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span className="text-blue-600 font-semibold text-xs">3</span>
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-slate-900">Practica en vivo</h4>
-                        <p className="text-slate-600">Conversa con el cliente IA por chat o voz</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-start space-x-3">
-                      <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span className="text-blue-600 font-semibold text-xs">4</span>
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-slate-900">Recibe feedback</h4>
-                        <p className="text-slate-600">Obtén evaluación detallada de tu desempeño</p>
-                      </div>
+                    <div>
+                      <h4 className="font-medium text-slate-900">Elige escenario</h4>
+                      <p className="text-slate-600 text-xs">Selecciona tu práctica</p>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-br from-purple-50 to-indigo-50 shadow-sm border border-purple-200">
-                <CardHeader className="border-b border-purple-100">
-                  <CardTitle className="text-purple-900">Tecnología IA Avanzada</CardTitle>
-                </CardHeader>
-                <CardContent className="p-6">
-                  <div className="space-y-3 text-sm">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                      <span className="text-purple-700">Personalidades de cliente realistas</span>
+                  
+                  <div className="flex items-start space-x-2">
+                    <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-blue-600 font-semibold text-xs">2</span>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                      <span className="text-purple-700">Evaluación en tiempo real</span>
+                    <div>
+                      <h4 className="font-medium text-slate-900">Configura</h4>
+                      <p className="text-slate-600 text-xs">Personalidad y modo</p>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                      <span className="text-purple-700">Adaptación dinámica del diálogo</span>
+                  </div>
+                  
+                  <div className="flex items-start space-x-2">
+                    <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-blue-600 font-semibold text-xs">3</span>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                      <span className="text-purple-700">Soporte para voz y texto</span>
+                    <div>
+                      <h4 className="font-medium text-slate-900">Practica</h4>
+                      <p className="text-slate-600 text-xs">Chat o voz en vivo</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start space-x-2">
+                    <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-blue-600 font-semibold text-xs">4</span>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-slate-900">Feedback</h4>
+                      <p className="text-slate-600 text-xs">Evaluación detallada</p>
                     </div>
                   </div>
                 </CardContent>
@@ -175,38 +147,38 @@ const Training = () => {
             </div>
           </div>
         ) : (
-          // Vista de confirmación de escenario seleccionado
+          // Vista de confirmación compacta
           <div className="max-w-2xl mx-auto">
-            <div className="flex items-center gap-4 mb-6">
-              <Button variant="outline" onClick={goBackToScenarios}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Cambiar Escenario
+            <div className="flex items-center gap-4 mb-4">
+              <Button variant="outline" onClick={goBackToScenarios} size="sm">
+                <ArrowLeft className="h-4 w-4 mr-1" />
+                Cambiar
               </Button>
-              <h2 className="text-2xl font-bold text-slate-900">Escenario Seleccionado</h2>
+              <h2 className="text-xl font-bold text-slate-900">Escenario Seleccionado</h2>
             </div>
 
-            <Card className="bg-white shadow-sm border border-slate-200 mb-6">
-              <CardHeader>
-                <CardTitle className="text-xl text-slate-900">{selectedScenario.title}</CardTitle>
+            <Card className="bg-white shadow-sm mb-4">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg text-slate-900">{selectedScenario.title}</CardTitle>
                 <div className="flex gap-2">
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 capitalize">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 capitalize">
                     {selectedScenario.scenario_type}
                   </span>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                     Nivel {selectedScenario.difficulty_level || 1}
                   </span>
                 </div>
               </CardHeader>
-              <CardContent>
-                <p className="text-slate-600 mb-4">{selectedScenario.description}</p>
+              <CardContent className="pt-0">
+                <p className="text-slate-600 text-sm mb-3">{selectedScenario.description}</p>
                 
                 {selectedScenario.expected_outcomes && (
-                  <div className="bg-slate-50 rounded-lg p-4">
-                    <h4 className="font-medium text-slate-900 mb-2">Objetivos de Aprendizaje:</h4>
+                  <div className="bg-slate-50 rounded-lg p-3">
+                    <h4 className="font-medium text-slate-900 mb-2 text-sm">Objetivos:</h4>
                     <ul className="space-y-1">
                       {((selectedScenario.expected_outcomes as any)?.objectives || []).map((objective: string, index: number) => (
-                        <li key={index} className="text-sm text-slate-600 flex items-start">
-                          <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-3 mt-2 flex-shrink-0" />
+                        <li key={index} className="text-xs text-slate-600 flex items-start">
+                          <div className="w-1 h-1 bg-blue-500 rounded-full mr-2 mt-1.5 flex-shrink-0" />
                           <span>{objective}</span>
                         </li>
                       ))}
@@ -220,9 +192,9 @@ const Training = () => {
               <Button
                 onClick={startTraining}
                 size="lg"
-                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-8 py-3"
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6"
               >
-                <Play className="h-5 w-5 mr-2" />
+                <Play className="h-4 w-4 mr-2" />
                 Comenzar Entrenamiento
               </Button>
             </div>
