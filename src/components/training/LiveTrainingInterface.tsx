@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -49,23 +48,27 @@ const LiveTrainingInterface = ({
   const sessionManager = useSessionManager();
   const { toast } = useToast();
   
+  // Use transcript from hook
   const {
     isListening,
+    isSupported: speechSupported,
     transcript,
     startListening,
     stopListening,
-    isSupported: speechSupported
-  } = useSpeechRecognition();
+    cleanup
+  } = useSpeechRecognition({
+    onResult: (result) => setInputMessage(result)
+  });
 
   const {
     isPlaying,
-    currentAudio,
+    isLoading,
     playAudio,
     stopAudio,
     volume,
     setVolume
   } = useAudioPlayer();
-
+  
   // Estado de evaluación en tiempo real
   const [realTimeMetrics, setRealTimeMetrics] = useState({
     rapport: 45,
@@ -470,7 +473,7 @@ const LiveTrainingInterface = ({
               <div className="space-y-4">
                 <VoiceSelectorSimple
                   selectedVoice={selectedVoice}
-                  onVoiceChange={setSelectedVoice}
+                  onVoiceSelect={(_id, name) => setSelectedVoice(name)}
                 />
                 
                 <div>

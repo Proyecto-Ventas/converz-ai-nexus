@@ -15,6 +15,7 @@ export const useSpeechRecognition = ({
 }: UseSpeechRecognitionProps) => {
   const [isListening, setIsListening] = useState(false);
   const [isSupported, setIsSupported] = useState(true);
+  const [transcript, setTranscript] = useState<string>(''); // ADDED
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const { toast } = useToast();
 
@@ -43,10 +44,11 @@ export const useSpeechRecognition = ({
     };
 
     recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      console.log('Speech recognition result:', transcript);
-      if (transcript.trim()) {
-        onResult(transcript.trim());
+      const localTranscript = event.results[0][0].transcript;
+      setTranscript(localTranscript); // ADDED
+      console.log('Speech recognition result:', localTranscript);
+      if (localTranscript.trim()) {
+        onResult(localTranscript.trim());
       }
     };
 
@@ -99,11 +101,13 @@ export const useSpeechRecognition = ({
       recognitionRef.current = null;
     }
     setIsListening(false);
+    setTranscript('');
   }, []);
 
   return {
     isListening,
     isSupported,
+    transcript,
     startListening,
     stopListening,
     cleanup

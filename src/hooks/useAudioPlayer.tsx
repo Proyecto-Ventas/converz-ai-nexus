@@ -10,6 +10,7 @@ interface UseAudioPlayerProps {
 export const useAudioPlayer = ({ onAudioEnd }: UseAudioPlayerProps = {}) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [volume, setVolume] = useState(1); // ADDED
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { toast } = useToast();
 
@@ -37,6 +38,7 @@ export const useAudioPlayer = ({ onAudioEnd }: UseAudioPlayerProps = {}) => {
         }
 
         const audio = new Audio(data.audioUrl);
+        audio.volume = volume; // ADDED
         audioRef.current = audio;
         
         audio.onloadstart = () => setIsLoading(true);
@@ -71,7 +73,7 @@ export const useAudioPlayer = ({ onAudioEnd }: UseAudioPlayerProps = {}) => {
         variant: "destructive"
       });
     }
-  }, [isPlaying, onAudioEnd, toast]);
+  }, [isPlaying, onAudioEnd, toast, volume]);
 
   const stopAudio = useCallback(() => {
     if (audioRef.current) {
@@ -87,6 +89,8 @@ export const useAudioPlayer = ({ onAudioEnd }: UseAudioPlayerProps = {}) => {
     isPlaying,
     isLoading,
     playAudio,
-    stopAudio
+    stopAudio,
+    volume,
+    setVolume
   };
 };
