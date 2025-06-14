@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import RealTimeEvaluation from './RealTimeEvaluation';
 import ConversationTranscript from './ConversationTranscript';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { LATIN_VOICES } from '@/utils/latinVoices';
 
 interface LiveTrainingInterfaceProps {
   scenario: string;
@@ -40,7 +42,8 @@ const LiveTrainingInterface = ({
   const [inputMessage, setInputMessage] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [selectedVoice, setSelectedVoice] = useState('Sarah');
+  const [selectedVoiceId, setSelectedVoiceId] = useState('EXAVITQu4vr4xnSDxMaL');
+  const [selectedVoiceName, setSelectedVoiceName] = useState('Bella');
   const [clientEmotion, setClientEmotion] = useState('neutral');
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
   const [sessionStartTime] = useState(Date.now());
@@ -48,7 +51,6 @@ const LiveTrainingInterface = ({
   const sessionManager = useSessionManager();
   const { toast } = useToast();
   
-  // Use transcript from hook
   const {
     isListening,
     isSupported: speechSupported,
@@ -57,17 +59,24 @@ const LiveTrainingInterface = ({
     stopListening,
     cleanup
   } = useSpeechRecognition({
-    onResult: (result) => setInputMessage(result)
+    onResult: (result) => {
+      console.log('Speech recognition result:', result);
+      setInputMessage(result);
+    }
   });
 
   const {
     isPlaying,
-    isLoading,
+    isLoading: audioLoading,
     playAudio,
     stopAudio,
     volume,
     setVolume
-  } = useAudioPlayer();
+  } = useAudioPlayer({
+    onAudioEnd: () => {
+      console.log('Audio playback ended');
+    }
+  });
   
   // Estado de evaluación en tiempo real
   const [realTimeMetrics, setRealTimeMetrics] = useState({
@@ -97,7 +106,7 @@ const LiveTrainingInterface = ({
         scenarioDescription,
         clientEmotion,
         interactionMode: mode,
-        selectedVoiceName: selectedVoice
+        selectedVoiceName
       };
 
       const newSessionId = await sessionManager.startSession(config);
@@ -109,6 +118,7 @@ const LiveTrainingInterface = ({
         await addMessage(welcomeMessage, 'ai', newSessionId);
         
         if (mode === 'call') {
+          console.log('Mode is call, generating initial audio...');
           await generateAndPlayAudio(welcomeMessage);
         }
       }
@@ -125,15 +135,22 @@ const LiveTrainingInterface = ({
       if (evaluationInterval.current) {
         clearInterval(evaluationInterval.current);
       }
+      cleanup();
     };
   }, []);
 
-  // Procesar transcript de voz
+  // Manejar cambio de modo
   useEffect(() => {
-    if (transcript && mode === 'call') {
-      setInputMessage(transcript);
+    if (mode === 'call') {
+      console.log('Switched to call mode');
+    } else {
+      console.log('Switched to chat mode');
+      stopAudio();
+      if (isListening) {
+        stopListening();
+      }
     }
-  }, [transcript, mode]);
+  }, [mode]);
 
   const getWelcomeMessage = () => {
     const emotions = {
@@ -265,35 +282,13 @@ const LiveTrainingInterface = ({
 
   const generateAndPlayAudio = async (text: string) => {
     if (!text.trim()) return;
-
+    console.log('Generating audio for:', text.substring(0, 50) + '...');
+    console.log('Using voice ID:', selectedVoiceId);
+    
     try {
-      setIsProcessing(true);
-      
-      const response = await supabase.functions.invoke('text-to-speech', {
-        body: {
-          text,
-          voiceId: selectedVoice,
-          stability: 0.5,
-          similarityBoost: 0.8,
-          style: 0.2
-        }
-      });
-
-      if (response.error) throw response.error;
-
-      const audioBlob = new Blob([response.data], { type: 'audio/mpeg' });
-      const audioUrl = URL.createObjectURL(audioBlob);
-      
-      await playAudio(audioUrl);
+      await playAudio(text, selectedVoiceId);
     } catch (error) {
-      console.error('Error generating audio:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo generar el audio",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessing(false);
+      console.error('Error generating/playing audio:', error);
     }
   };
 
@@ -309,6 +304,8 @@ const LiveTrainingInterface = ({
     setIsProcessing(true);
 
     try {
+      console.log('Sending message to AI:', userMessage);
+      
       // Obtener respuesta de IA
       const response = await supabase.functions.invoke('enhanced-ai-conversation', {
         body: {
@@ -335,12 +332,14 @@ const LiveTrainingInterface = ({
       if (response.error) throw response.error;
 
       const aiResponse = response.data.response;
+      console.log('AI response received:', aiResponse?.substring(0, 50) + '...');
       
       // Agregar respuesta de IA
       await addMessage(aiResponse, 'ai');
 
-      // Si es modo llamada, generar audio
+      // Si es modo llamada, generar y reproducir audio
       if (mode === 'call') {
+        console.log('Call mode active, generating audio...');
         await generateAndPlayAudio(aiResponse);
       }
 
@@ -357,6 +356,7 @@ const LiveTrainingInterface = ({
   };
 
   const handleVoiceMode = () => {
+    console.log('Toggling voice mode from:', mode);
     if (mode === 'call') {
       if (isListening) {
         stopListening();
@@ -369,17 +369,28 @@ const LiveTrainingInterface = ({
   };
 
   const handleMicToggle = () => {
+    console.log('Toggling microphone, currently listening:', isListening);
     if (isListening) {
       stopListening();
+      // Auto-send if there's text
       if (inputMessage.trim()) {
+        console.log('Auto-sending message after stopping mic');
         sendMessage();
       }
     } else {
+      console.log('Starting to listen...');
       startListening();
     }
   };
 
+  const handleVoiceSelect = (voiceId: string, voiceName: string) => {
+    console.log('Voice selected:', voiceName, 'ID:', voiceId);
+    setSelectedVoiceId(voiceId);
+    setSelectedVoiceName(voiceName);
+  };
+
   const handleEndSession = async () => {
+    console.log('Ending session...');
     if (sessionId) {
       await sessionManager.endSession(sessionId, realTimeMetrics.overallScore);
       
@@ -439,6 +450,11 @@ const LiveTrainingInterface = ({
                   {mode === 'call' ? 'Llamada' : 'Chat'}
                 </Badge>
                 <Badge variant="outline">{clientEmotion}</Badge>
+                {mode === 'call' && (isPlaying || audioLoading) && (
+                  <Badge variant="secondary" className="animate-pulse">
+                    {audioLoading ? 'Generando...' : 'Reproduciendo'}
+                  </Badge>
+                )}
               </div>
             </div>
           </div>
@@ -457,7 +473,7 @@ const LiveTrainingInterface = ({
               size="sm"
             >
               {mode === 'call' ? <Phone className="h-4 w-4 mr-2" /> : <Mic className="h-4 w-4 mr-2" />}
-              {mode === 'call' ? 'Llamada' : 'Activar Voz'}
+              {mode === 'call' ? 'Llamada Activa' : 'Activar Llamada'}
             </Button>
             <Button onClick={handleEndSession} variant="destructive" size="sm">
               <PhoneOff className="h-4 w-4 mr-2" />
@@ -472,41 +488,44 @@ const LiveTrainingInterface = ({
             <CardContent className="p-4">
               <div className="space-y-4">
                 <VoiceSelectorSimple
-                  selectedVoice={selectedVoice}
-                  onVoiceSelect={(_id, name) => setSelectedVoice(name)}
+                  selectedVoice={selectedVoiceId}
+                  onVoiceSelect={handleVoiceSelect}
                 />
                 
-                <div>
-                  <label className="text-sm font-medium">Emoción del Cliente:</label>
-                  <select
-                    value={clientEmotion}
-                    onChange={(e) => setClientEmotion(e.target.value)}
-                    className="ml-2 border rounded px-3 py-1 text-sm"
-                  >
-                    <option value="neutral">Neutral</option>
-                    <option value="curious">Curioso</option>
-                    <option value="skeptical">Escéptico</option>
-                    <option value="hurried">Apurado</option>
-                    <option value="annoyed">Molesto</option>
-                    <option value="interested">Interesado</option>
-                  </select>
-                </div>
-
-                {mode === 'call' && (
-                  <div className="flex items-center space-x-2">
-                    <VolumeX className="h-4 w-4" />
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.1"
-                      value={volume}
-                      onChange={(e) => setVolume(parseFloat(e.target.value))}
-                      className="flex-1"
-                    />
-                    <Volume2 className="h-4 w-4" />
+                <div className="flex items-center space-x-4">
+                  <div>
+                    <label className="text-sm font-medium">Emoción del Cliente:</label>
+                    <select
+                      value={clientEmotion}
+                      onChange={(e) => setClientEmotion(e.target.value)}
+                      className="ml-2 border rounded px-3 py-1 text-sm"
+                    >
+                      <option value="neutral">Neutral</option>
+                      <option value="curious">Curioso</option>
+                      <option value="skeptical">Escéptico</option>
+                      <option value="hurried">Apurado</option>
+                      <option value="annoyed">Molesto</option>
+                      <option value="interested">Interesado</option>
+                    </select>
                   </div>
-                )}
+
+                  {mode === 'call' && (
+                    <div className="flex items-center space-x-2">
+                      <VolumeX className="h-4 w-4" />
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.1"
+                        value={volume}
+                        onChange={(e) => setVolume(parseFloat(e.target.value))}
+                        className="flex-1"
+                      />
+                      <Volume2 className="h-4 w-4" />
+                      <span className="text-xs text-gray-500">{Math.round(volume * 100)}%</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -519,7 +538,7 @@ const LiveTrainingInterface = ({
             <ConversationTranscript
               messages={messages}
               isListening={isListening}
-              currentUserText={inputMessage}
+              currentUserText={transcript}
               className="h-[500px]"
             />
 
@@ -541,7 +560,7 @@ const LiveTrainingInterface = ({
                       onClick={handleMicToggle}
                       variant={isListening ? 'default' : 'outline'}
                       size="sm"
-                      disabled={isProcessing}
+                      disabled={isProcessing || isPlaying}
                     >
                       {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                     </Button>
@@ -556,13 +575,22 @@ const LiveTrainingInterface = ({
                   </Button>
                 </div>
                 
-                {mode === 'call' && (isPlaying || isProcessing) && (
-                  <div className="mt-2 text-center">
-                    <Badge variant="secondary" className="animate-pulse">
-                      {isProcessing ? 'Procesando...' : 'Cliente hablando...'}
-                    </Badge>
+                <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
+                  <div className="flex items-center space-x-2">
+                    <div className={`w-2 h-2 rounded-full ${
+                      mode === 'call' ? 'bg-green-400' : 'bg-blue-400'
+                    }`} />
+                    <span>Modo: {mode === 'call' ? 'Llamada' : 'Chat'}</span>
                   </div>
-                )}
+                  
+                  {mode === 'call' && (
+                    <div className="flex items-center space-x-2">
+                      {isListening && <span className="animate-pulse">🎤 Escuchando...</span>}
+                      {isPlaying && <span className="animate-pulse">🔊 Reproduciendo...</span>}
+                      {audioLoading && <span className="animate-pulse">⏳ Generando audio...</span>}
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>

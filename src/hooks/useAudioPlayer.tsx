@@ -10,27 +10,39 @@ interface UseAudioPlayerProps {
 export const useAudioPlayer = ({ onAudioEnd }: UseAudioPlayerProps = {}) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [volume, setVolume] = useState(1); // ADDED
+  const [volume, setVolume] = useState(1);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { toast } = useToast();
 
-  const playAudio = useCallback(async (text: string, voice: string = 'Sarah') => {
+  const playAudio = useCallback(async (text: string, voiceId: string = 'EXAVITQu4vr4xnSDxMaL') => {
     if (isPlaying) return;
 
     setIsLoading(true);
     
     try {
+      console.log('Generating audio for text:', text.substring(0, 50) + '...');
+      console.log('Using voice ID:', voiceId);
+
       const { data, error } = await supabase.functions.invoke('text-to-speech', {
         body: {
           text,
-          voice,
-          model: 'eleven_multilingual_v2'
+          voice: voiceId,
+          model: 'eleven_multilingual_v2',
+          settings: {
+            stability: 0.6,
+            similarity_boost: 0.8,
+            style: 0.3,
+            use_speaker_boost: true
+          }
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('TTS error:', error);
+        throw error;
+      }
 
-      if (data.audioUrl) {
+      if (data?.audioUrl) {
         // Stop any currently playing audio
         if (audioRef.current) {
           audioRef.current.pause();
@@ -38,17 +50,31 @@ export const useAudioPlayer = ({ onAudioEnd }: UseAudioPlayerProps = {}) => {
         }
 
         const audio = new Audio(data.audioUrl);
-        audio.volume = volume; // ADDED
+        audio.volume = volume;
         audioRef.current = audio;
         
-        audio.onloadstart = () => setIsLoading(true);
-        audio.oncanplay = () => setIsLoading(false);
-        audio.onplay = () => setIsPlaying(true);
+        audio.onloadstart = () => {
+          console.log('Audio loading started');
+          setIsLoading(true);
+        };
+        
+        audio.oncanplay = () => {
+          console.log('Audio can play');
+          setIsLoading(false);
+        };
+        
+        audio.onplay = () => {
+          console.log('Audio started playing');
+          setIsPlaying(true);
+        };
+        
         audio.onended = () => {
+          console.log('Audio ended');
           setIsPlaying(false);
           audioRef.current = null;
           onAudioEnd?.();
         };
+        
         audio.onerror = (e) => {
           console.error('Audio playback error:', e);
           setIsPlaying(false);
@@ -62,6 +88,8 @@ export const useAudioPlayer = ({ onAudioEnd }: UseAudioPlayerProps = {}) => {
         };
 
         await audio.play();
+      } else {
+        throw new Error('No audio URL received');
       }
     } catch (error) {
       console.error('Error playing audio:', error);
