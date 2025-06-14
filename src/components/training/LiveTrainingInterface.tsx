@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,12 +12,15 @@ import RealTimeEvaluation from './RealTimeEvaluation';
 import ConversationTranscript from './ConversationTranscript';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { LATIN_VOICES } from '@/utils/latinVoices';
 
 interface LiveTrainingInterfaceProps {
   scenario: string;
   scenarioTitle: string;
   scenarioDescription: string;
+  mode: 'chat' | 'call';
+  clientEmotion: string;
+  selectedVoiceId: string;
+  selectedVoiceName: string;
   onComplete: (evaluation: any) => void;
   onBack: () => void;
 }
@@ -34,17 +36,21 @@ const LiveTrainingInterface = ({
   scenario,
   scenarioTitle,
   scenarioDescription,
+  mode: initialMode,
+  clientEmotion: initialClientEmotion,
+  selectedVoiceId: initialVoiceId,
+  selectedVoiceName: initialVoiceName,
   onComplete,
   onBack
 }: LiveTrainingInterfaceProps) => {
-  const [mode, setMode] = useState<'chat' | 'call'>('chat');
+  const [mode, setMode] = useState<'chat' | 'call'>(initialMode);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [selectedVoiceId, setSelectedVoiceId] = useState('EXAVITQu4vr4xnSDxMaL');
-  const [selectedVoiceName, setSelectedVoiceName] = useState('Bella');
-  const [clientEmotion, setClientEmotion] = useState('neutral');
+  const [selectedVoiceId, setSelectedVoiceId] = useState(initialVoiceId);
+  const [selectedVoiceName, setSelectedVoiceName] = useState(initialVoiceName);
+  const [clientEmotion, setClientEmotion] = useState(initialClientEmotion);
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
   const [sessionStartTime] = useState(Date.now());
 
@@ -138,19 +144,6 @@ const LiveTrainingInterface = ({
       cleanup();
     };
   }, []);
-
-  // Manejar cambio de modo
-  useEffect(() => {
-    if (mode === 'call') {
-      console.log('Switched to call mode');
-    } else {
-      console.log('Switched to chat mode');
-      stopAudio();
-      if (isListening) {
-        stopListening();
-      }
-    }
-  }, [mode]);
 
   const getWelcomeMessage = () => {
     const emotions = {
@@ -434,22 +427,22 @@ const LiveTrainingInterface = ({
   const currentDuration = Math.floor((Date.now() - sessionStartTime) / 1000);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-emerald-50 p-4">
       <div className="max-w-7xl mx-auto">
         {/* Header compacto */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-4">
-            <Button variant="outline" onClick={onBack} size="sm">
+            <Button variant="outline" onClick={onBack} size="sm" className="corporate-hover-emerald">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Volver
             </Button>
             <div>
-              <h1 className="text-xl font-bold text-slate-900">{scenarioTitle}</h1>
+              <h1 className="text-xl font-bold text-gray-900">{scenarioTitle}</h1>
               <div className="flex items-center space-x-2 mt-1">
-                <Badge variant={mode === 'call' ? 'default' : 'secondary'}>
+                <Badge className={mode === 'call' ? 'corporate-emerald text-white' : 'bg-slate-500 text-white'}>
                   {mode === 'call' ? 'Llamada' : 'Chat'}
                 </Badge>
-                <Badge variant="outline">{clientEmotion}</Badge>
+                <Badge variant="outline" className="corporate-emerald-border corporate-text-emerald">{clientEmotion}</Badge>
                 {mode === 'call' && (isPlaying || audioLoading) && (
                   <Badge variant="secondary" className="animate-pulse">
                     {audioLoading ? 'Generando...' : 'Reproduciendo'}
@@ -460,21 +453,16 @@ const LiveTrainingInterface = ({
           </div>
 
           <div className="flex items-center space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowVoiceSettings(!showVoiceSettings)}
-            >
-              <Settings className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={mode === 'call' ? 'default' : 'outline'}
-              onClick={handleVoiceMode}
-              size="sm"
-            >
-              {mode === 'call' ? <Phone className="h-4 w-4 mr-2" /> : <Mic className="h-4 w-4 mr-2" />}
-              {mode === 'call' ? 'Llamada Activa' : 'Activar Llamada'}
-            </Button>
+            {mode === 'call' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowVoiceSettings(!showVoiceSettings)}
+                className="corporate-hover-emerald"
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+            )}
             <Button onClick={handleEndSession} variant="destructive" size="sm">
               <PhoneOff className="h-4 w-4 mr-2" />
               Finalizar
@@ -482,9 +470,9 @@ const LiveTrainingInterface = ({
           </div>
         </div>
 
-        {/* Configuración de voz */}
-        {showVoiceSettings && (
-          <Card className="mb-4">
+        {/* Configuración de voz - Solo en modo llamada */}
+        {showVoiceSettings && mode === 'call' && (
+          <Card className="mb-4 corporate-emerald-border border-2">
             <CardContent className="p-4">
               <div className="space-y-4">
                 <VoiceSelectorSimple
@@ -498,7 +486,7 @@ const LiveTrainingInterface = ({
                     <select
                       value={clientEmotion}
                       onChange={(e) => setClientEmotion(e.target.value)}
-                      className="ml-2 border rounded px-3 py-1 text-sm"
+                      className="ml-2 border rounded px-3 py-1 text-sm corporate-hover-emerald"
                     >
                       <option value="neutral">Neutral</option>
                       <option value="curious">Curioso</option>
@@ -509,22 +497,20 @@ const LiveTrainingInterface = ({
                     </select>
                   </div>
 
-                  {mode === 'call' && (
-                    <div className="flex items-center space-x-2">
-                      <VolumeX className="h-4 w-4" />
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.1"
-                        value={volume}
-                        onChange={(e) => setVolume(parseFloat(e.target.value))}
-                        className="flex-1"
-                      />
-                      <Volume2 className="h-4 w-4" />
-                      <span className="text-xs text-gray-500">{Math.round(volume * 100)}%</span>
-                    </div>
-                  )}
+                  <div className="flex items-center space-x-2">
+                    <VolumeX className="h-4 w-4 corporate-text-emerald" />
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={volume}
+                      onChange={(e) => setVolume(parseFloat(e.target.value))}
+                      className="flex-1"
+                    />
+                    <Volume2 className="h-4 w-4 corporate-text-emerald" />
+                    <span className="text-xs text-gray-500">{Math.round(volume * 100)}%</span>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -543,7 +529,7 @@ const LiveTrainingInterface = ({
             />
 
             {/* Input de mensaje */}
-            <Card className="mt-4">
+            <Card className="mt-4 corporate-emerald-border border">
               <CardContent className="p-3">
                 <div className="flex space-x-2">
                   <Input
@@ -561,6 +547,7 @@ const LiveTrainingInterface = ({
                       variant={isListening ? 'default' : 'outline'}
                       size="sm"
                       disabled={isProcessing || isPlaying}
+                      className={isListening ? 'corporate-emerald text-white' : 'corporate-hover-emerald'}
                     >
                       {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                     </Button>
@@ -570,6 +557,7 @@ const LiveTrainingInterface = ({
                     onClick={sendMessage}
                     disabled={!inputMessage.trim() || isProcessing}
                     size="sm"
+                    className="corporate-emerald text-white hover:from-emerald-600 hover:to-teal-700"
                   >
                     <Send className="h-4 w-4" />
                   </Button>
@@ -578,7 +566,7 @@ const LiveTrainingInterface = ({
                 <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
                   <div className="flex items-center space-x-2">
                     <div className={`w-2 h-2 rounded-full ${
-                      mode === 'call' ? 'bg-green-400' : 'bg-blue-400'
+                      mode === 'call' ? 'bg-emerald-400' : 'bg-slate-400'
                     }`} />
                     <span>Modo: {mode === 'call' ? 'Llamada' : 'Chat'}</span>
                   </div>
