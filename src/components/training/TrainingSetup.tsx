@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Phone, MessageSquare, Settings, Play, User, Zap, Volume2 } from 'lucide-react';
-import VoiceSelectorSimple from '@/components/voices/VoiceSelectorSimple';
+import DynamicVoiceSelector from '@/components/voices/DynamicVoiceSelector';
 import { CorporateCard } from '@/components/ui/corporate-layout';
 
 interface TrainingSetupProps {
@@ -17,8 +17,8 @@ interface TrainingSetupProps {
 const TrainingSetup = ({ scenario, onStart, onBack }: TrainingSetupProps) => {
   const [mode, setMode] = useState<'chat' | 'call'>('call');
   const [clientEmotion, setClientEmotion] = useState('neutral');
-  const [selectedVoiceId, setSelectedVoiceId] = useState('EXAVITQu4vr4xnSDxMaL');
-  const [selectedVoiceName, setSelectedVoiceName] = useState('Bella');
+  const [selectedVoiceId, setSelectedVoiceId] = useState('VmejBeYhbrcTPwDniox7');
+  const [selectedVoiceName, setSelectedVoiceName] = useState('Sofia (Colombia)');
 
   const emotions = [
     { value: 'neutral', label: 'Neutral', color: 'bg-gray-100 text-gray-700', description: 'Cliente con actitud neutra y abierta' },
@@ -30,6 +30,12 @@ const TrainingSetup = ({ scenario, onStart, onBack }: TrainingSetupProps) => {
   ];
 
   const handleStart = () => {
+    if (mode === 'call' && !selectedVoiceId) {
+      // Usar voz por defecto si no se seleccionó ninguna
+      setSelectedVoiceId('VmejBeYhbrcTPwDniox7');
+      setSelectedVoiceName('Sofia (Colombia)');
+    }
+
     const config = {
       scenario: scenario.id,
       scenarioTitle: scenario.title,
@@ -40,11 +46,12 @@ const TrainingSetup = ({ scenario, onStart, onBack }: TrainingSetupProps) => {
       selectedVoiceName
     };
     
-    console.log('Starting training with config:', config);
+    console.log('Starting training with enhanced config:', config);
     onStart(config);
   };
 
   const handleVoiceSelect = (voiceId: string, voiceName: string) => {
+    console.log('Voice selected in setup:', voiceName, 'ID:', voiceId);
     setSelectedVoiceId(voiceId);
     setSelectedVoiceName(voiceName);
   };
@@ -52,7 +59,7 @@ const TrainingSetup = ({ scenario, onStart, onBack }: TrainingSetupProps) => {
   const selectedEmotion = emotions.find(e => e.value === clientEmotion);
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <Button variant="outline" onClick={onBack} className="corporate-hover-emerald">
@@ -61,7 +68,7 @@ const TrainingSetup = ({ scenario, onStart, onBack }: TrainingSetupProps) => {
         <div className="flex items-center space-x-3">
           <Badge className="corporate-emerald text-white">
             <Zap className="h-3 w-3 mr-1" />
-            Configuración de Entrenamiento
+            Configuración Avanzada
           </Badge>
         </div>
       </div>
@@ -75,7 +82,7 @@ const TrainingSetup = ({ scenario, onStart, onBack }: TrainingSetupProps) => {
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900">{scenario.title}</h2>
-              <p className="text-sm text-gray-600 mt-1">Configuración previa al entrenamiento</p>
+              <p className="text-sm text-gray-600 mt-1">Configuración previa con voces dinámicas</p>
             </div>
           </CardTitle>
         </CardHeader>
@@ -94,7 +101,7 @@ const TrainingSetup = ({ scenario, onStart, onBack }: TrainingSetupProps) => {
         </CardContent>
       </CorporateCard>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Configuración de Modo */}
         <CorporateCard>
           <CardHeader>
@@ -104,7 +111,7 @@ const TrainingSetup = ({ scenario, onStart, onBack }: TrainingSetupProps) => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3">
               <button
                 onClick={() => setMode('call')}
                 className={`p-4 rounded-lg border-2 transition-all duration-200 ${
@@ -115,10 +122,10 @@ const TrainingSetup = ({ scenario, onStart, onBack }: TrainingSetupProps) => {
               >
                 <Phone className={`h-6 w-6 mx-auto mb-2 ${mode === 'call' ? 'text-white' : 'text-emerald-600'}`} />
                 <div className={`font-semibold ${mode === 'call' ? 'text-white' : 'text-gray-900'}`}>
-                  Llamada
+                  Llamada por Voz
                 </div>
                 <div className={`text-xs mt-1 ${mode === 'call' ? 'text-emerald-100' : 'text-gray-500'}`}>
-                  Con voz y audio
+                  Conversación con ElevenLabs
                 </div>
               </button>
 
@@ -132,22 +139,22 @@ const TrainingSetup = ({ scenario, onStart, onBack }: TrainingSetupProps) => {
               >
                 <MessageSquare className={`h-6 w-6 mx-auto mb-2 ${mode === 'chat' ? 'text-white' : 'text-emerald-600'}`} />
                 <div className={`font-semibold ${mode === 'chat' ? 'text-white' : 'text-gray-900'}`}>
-                  Chat
+                  Chat de Texto
                 </div>
                 <div className={`text-xs mt-1 ${mode === 'chat' ? 'text-emerald-100' : 'text-gray-500'}`}>
-                  Solo texto
+                  Solo mensajes
                 </div>
               </button>
             </div>
 
             <div className="corporate-emerald-light p-3 rounded-lg corporate-emerald-border border">
               <p className="text-sm corporate-text-emerald font-medium mb-1">
-                {mode === 'call' ? '🎯 Modo Llamada Seleccionado' : '💬 Modo Chat Seleccionado'}
+                {mode === 'call' ? '🎯 Modo Llamada Activo' : '💬 Modo Chat Activo'}
               </p>
               <p className="text-xs text-gray-600">
                 {mode === 'call' 
-                  ? 'Practíca con conversación de voz realista usando voces latinas auténticas'
-                  : 'Practica mediante mensajes de texto para enfocarte en el contenido'
+                  ? 'Conversación natural por voz con tecnología ElevenLabs'
+                  : 'Práctica mediante texto para enfocarte en el contenido'
                 }
               </p>
             </div>
@@ -192,12 +199,13 @@ const TrainingSetup = ({ scenario, onStart, onBack }: TrainingSetupProps) => {
         </CorporateCard>
       </div>
 
-      {/* Selector de Voz - Solo visible en modo llamada */}
+      {/* Selector de Voz Dinámico - Solo visible en modo llamada */}
       {mode === 'call' && (
         <div>
-          <VoiceSelectorSimple
+          <DynamicVoiceSelector
             selectedVoice={selectedVoiceId}
             onVoiceSelect={handleVoiceSelect}
+            priorityOnly={true}
           />
         </div>
       )}
@@ -210,10 +218,13 @@ const TrainingSetup = ({ scenario, onStart, onBack }: TrainingSetupProps) => {
           className="corporate-emerald hover:from-emerald-600 hover:to-teal-700 text-white px-8 py-4 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
         >
           <Play className="h-5 w-5 mr-3" />
-          Comenzar Entrenamiento {mode === 'call' ? 'en Llamada' : 'por Chat'}
+          Comenzar Entrenamiento {mode === 'call' ? 'por Voz' : 'por Chat'}
         </Button>
         <p className="text-sm text-gray-500 mt-2">
-          {mode === 'call' ? 'Asegúrate de tener micrófono y altavoces funcionando' : 'Podrás escribir y recibir respuestas del cliente virtual'}
+          {mode === 'call' 
+            ? 'Conversación fluida con voces latinas auténticas de ElevenLabs' 
+            : 'Interacción por texto con retroalimentación inteligente'
+          }
         </p>
       </div>
     </div>

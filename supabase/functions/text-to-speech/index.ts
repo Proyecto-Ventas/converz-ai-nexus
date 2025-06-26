@@ -8,21 +8,39 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Cache para audio generado
+const audioCache = new Map<string, { data: string; timestamp: number }>();
+const CACHE_DURATION = 300000; // 5 minutos
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    const { text, voice = 'Sarah', model = 'eleven_multilingual_v2', settings } = await req.json();
+    const { text, voice_id, model_id = 'eleven_multilingual_v2', voice_settings } = await req.json();
 
     if (!text) {
       throw new Error('Text is required');
     }
 
-    console.log('Processing TTS request for text:', text.substring(0, 50) + '...');
+    console.log(`Processing TTS request for voice ${voice_id}:`, text.substring(0, 50) + '...');
 
-    // If no API key, return audio URL instead of base64
+    // Generar clave de cache
+    const cacheKey = `${voice_id}_${text}_${JSON.stringify(voice_settings)}`;
+    const cached = audioCache.get(cacheKey);
+    
+    // Verificar cache
+    if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+      console.log('Returning cached audio');
+      return new Response(
+        JSON.stringify({ audioUrl: cached.data }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      );
+    }
+
     if (!elevenLabsApiKey) {
       console.log('No ElevenLabs API key, returning mock response');
       return new Response(
@@ -36,27 +54,18 @@ serve(async (req) => {
       );
     }
 
-    // Voice mapping for different character types
-    const voiceMapping = {
-      'Sarah': 'EXAVITQu4vr4xnSDxMaL',  // Professional female
-      'George': 'JBFqnCBsd6RMkjVDRZzb', // Business male
-      'Charlotte': 'XB0fDUnXU5powFXDhCwa', // Friendly female
-      'Daniel': 'onwK4e9ZLuTAKqWW03F9',  // Authoritative male
-      'Aria': '9BWtsMINqrJLrRacOk9x',     // Natural female
-      'Roger': 'CwhRBWXzGAHq8TQ4Fs17',   // Mature male
+    // Configuración de voz optimizada para fluidez
+    const optimizedSettings = {
+      stability: voice_settings?.stability || 0.7,
+      similarity_boost: voice_settings?.similarity_boost || 0.8,
+      style: voice_settings?.style || 0.3,
+      use_speaker_boost: voice_settings?.use_speaker_boost || true,
+      ...voice_settings
     };
 
-    const voiceId = voiceMapping[voice] || voiceMapping['Sarah'];
+    console.log(`Generating audio with voice ${voice_id} and settings:`, optimizedSettings);
 
-    // Default voice settings
-    const voiceSettings = settings || {
-      stability: 0.6,
-      similarity_boost: 0.8,
-      style: 0.3,
-      use_speaker_boost: true
-    };
-
-    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice_id}`, {
       method: 'POST',
       headers: {
         'Accept': 'audio/mpeg',
@@ -65,8 +74,8 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         text: text.length > 500 ? text.substring(0, 500) + '...' : text,
-        model_id: model,
-        voice_settings: voiceSettings,
+        model_id: model_id,
+        voice_settings: optimizedSettings,
       }),
     });
 
@@ -74,11 +83,12 @@ serve(async (req) => {
       const errorText = await response.text();
       console.error('ElevenLabs API error:', errorText);
       
-      // Return a fallback response instead of throwing
+      // Retornar respuesta de fallback
       return new Response(
         JSON.stringify({ 
           audioUrl: 'data:audio/mp3;base64,//uQRAAAAWMSLwUIDAz/QkEARAQERAQERAQERAQERAQERAQERAQ',
-          message: 'TTS service temporarily unavailable'
+          message: 'TTS service temporarily unavailable',
+          error: errorText
         }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -89,20 +99,34 @@ serve(async (req) => {
     const arrayBuffer = await response.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
     
-    // Create a data URL for immediate use
+    // Procesamiento optimizado de audio
     let binary = '';
     const chunkSize = 0x8000;
     for (let i = 0; i < uint8Array.length; i += chunkSize) {
       const chunk = uint8Array.subarray(i, i + chunkSize);
       binary += String.fromCharCode.apply(null, Array.from(chunk));
     }
+    
     const base64Audio = btoa(binary);
     const audioUrl = `data:audio/mp3;base64,${base64Audio}`;
 
-    console.log('TTS generation successful');
+    // Guardar en cache
+    audioCache.set(cacheKey, {
+      data: audioUrl,
+      timestamp: Date.now()
+    });
+
+    // Limpiar cache antiguo
+    cleanupCache();
+
+    console.log('TTS generation successful, audio cached');
 
     return new Response(
-      JSON.stringify({ audioUrl }),
+      JSON.stringify({ 
+        audioUrl,
+        cached: false,
+        duration: uint8Array.length
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       },
@@ -110,7 +134,6 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in text-to-speech function:', error);
     
-    // Always return a response, never fail completely
     return new Response(
       JSON.stringify({ 
         audioUrl: 'data:audio/mp3;base64,//uQRAAAAWMSLwUIDAz/QkEARAQERAQERAQERAQERAQERAQERAQ',
@@ -123,3 +146,12 @@ serve(async (req) => {
     );
   }
 });
+
+function cleanupCache() {
+  const now = Date.now();
+  for (const [key, value] of audioCache.entries()) {
+    if (now - value.timestamp > CACHE_DURATION) {
+      audioCache.delete(key);
+    }
+  }
+}
