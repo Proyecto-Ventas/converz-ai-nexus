@@ -21,19 +21,7 @@ const Dashboard = () => {
       <div className="max-w-7xl space-y-8 mx-0 px-0 py-0 my-[19px]">
         {/* Header renovado */}
         <div className="flex justify-between items-start">
-          <div className="space-y-2">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Target className="h-6 w-6 text-blue-600" />
-              </div>
-              <h1 className="text-3xl font-bold text-slate-900">
-                Panel de Control
-              </h1>
-            </div>
-            <p className="text-xl text-slate-600">
-              Bienvenido de vuelta. Aquí está tu progreso de entrenamiento.
-            </p>
-          </div>
+          
           <Link to="/training">
             <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg">
               <Plus className="h-4 w-4 mr-2" />
