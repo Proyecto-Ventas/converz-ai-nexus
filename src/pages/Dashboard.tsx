@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import DashboardStats from '@/components/dashboard/DashboardStats';
@@ -7,21 +8,34 @@ import { useAchievements } from '@/hooks/useAchievements';
 import { Button } from '@/components/ui/button';
 import { Plus, TrendingUp, Zap, Target } from 'lucide-react';
 import { Link } from 'react-router-dom';
+
 const Dashboard = () => {
-  const {
-    stats,
-    loading: statsLoading
-  } = useUserStats();
-  const {
-    achievements,
-    loading: achievementsLoading
-  } = useAchievements();
-  const recentAchievements = achievements.filter(ua => ua.earned_at).sort((a, b) => new Date(b.earned_at!).getTime() - new Date(a.earned_at!).getTime()).slice(0, 3);
-  return <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-      <div className="max-w-7xl space-y-8 mx-0 px-0 py-0 my-[19px]">
+  const { stats, loading: statsLoading } = useUserStats();
+  const { achievements, loading: achievementsLoading } = useAchievements();
+
+  const recentAchievements = achievements
+    .filter(ua => ua.earned_at)
+    .sort((a, b) => new Date(b.earned_at!).getTime() - new Date(a.earned_at!).getTime())
+    .slice(0, 3);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+      <div className="max-w-7xl mx-auto space-y-8">
         {/* Header renovado */}
         <div className="flex justify-between items-start">
-          
+          <div className="space-y-2">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Target className="h-6 w-6 text-blue-600" />
+              </div>
+              <h1 className="text-3xl font-bold text-slate-900">
+                Panel de Control
+              </h1>
+            </div>
+            <p className="text-xl text-slate-600">
+              Bienvenido de vuelta. Aquí está tu progreso de entrenamiento.
+            </p>
+          </div>
           <Link to="/training">
             <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg">
               <Plus className="h-4 w-4 mr-2" />
@@ -57,10 +71,13 @@ const Dashboard = () => {
               </Link>
             </CardHeader>
             <CardContent className="p-6">
-              {achievementsLoading ? <div className="text-center py-12">
+              {achievementsLoading ? (
+                <div className="text-center py-12">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
                   <p className="text-slate-500">Cargando logros...</p>
-                </div> : recentAchievements.length === 0 ? <div className="text-center py-12">
+                </div>
+              ) : recentAchievements.length === 0 ? (
+                <div className="text-center py-12">
                   <div className="p-4 bg-slate-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
                     <Zap className="h-8 w-8 text-slate-400" />
                   </div>
@@ -70,8 +87,14 @@ const Dashboard = () => {
                   <p className="text-slate-600">
                     ¡Completa algunas sesiones para desbloquear logros!
                   </p>
-                </div> : <div className="space-y-4">
-                  {recentAchievements.map(userAchievement => <div key={userAchievement.id} className="flex items-center space-x-4 p-4 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-200">
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {recentAchievements.map((userAchievement) => (
+                    <div
+                      key={userAchievement.id}
+                      className="flex items-center space-x-4 p-4 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-200"
+                    >
                       <div className="h-12 w-12 bg-gradient-to-r from-yellow-400 to-amber-500 rounded-full flex items-center justify-center shadow-lg">
                         <span className="text-xl">🏆</span>
                       </div>
@@ -86,14 +109,17 @@ const Dashboard = () => {
                       <div className="text-xs text-amber-600 font-medium">
                         {new Date(userAchievement.earned_at!).toLocaleDateString()}
                       </div>
-                    </div>)}
-                </div>}
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
 
         {/* Resumen de progreso */}
-        {!statsLoading && stats && <Card className="bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-xl border-0">
+        {!statsLoading && stats && (
+          <Card className="bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-xl border-0">
             <CardHeader className="border-b border-slate-700">
               <CardTitle className="flex items-center space-x-2">
                 <TrendingUp className="h-5 w-5" />
@@ -122,8 +148,11 @@ const Dashboard = () => {
                 </div>
               </div>
             </CardContent>
-          </Card>}
+          </Card>
+        )}
       </div>
-    </div>;
+    </div>
+  );
 };
+
 export default Dashboard;
