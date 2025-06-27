@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -94,11 +93,11 @@ const ProfessionalSidebar = () => {
         <div className="flex h-16 items-center justify-between px-4 border-b border-emerald-200/60">
           {!isCollapsed && (
             <div className="flex items-center space-x-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-lg">
+              <div className="flex h-10 w-10 items-center justify-center">
                 <img 
                   src="https://www.convertia.com/favicon/favicon-convertia.png" 
                   alt="Convert-IA" 
-                  className="h-6 w-6" 
+                  className="h-8 w-8" 
                 />
               </div>
               <div>

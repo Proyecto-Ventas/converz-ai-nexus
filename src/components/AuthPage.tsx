@@ -77,33 +77,49 @@ const AuthPage = () => {
       setLoading(false);
     }
   };
-  return <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-100 flex items-center justify-center p-4">
-      {/* Theme Toggle */}
-      <button onClick={toggleTheme} className="fixed top-4 right-4 p-2 rounded-lg bg-white/90 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-200 border border-emerald-200">
-        {theme === 'light' ? <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-emerald-600">
+
+  return (
+    <div className="min-h-screen relative">
+      {/* Fondo con gradiente personalizado */}
+      <div 
+        className="absolute inset-0 z-0"
+        style={{
+          background: 'linear-gradient(135deg, hsl(160, 92%, 14%) 0%, rgba(255,255,255,0) 100%)',
+        }}
+      />
+      
+      {/* Contenido */}
+      <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
+        {/* Theme Toggle - Fixed to top right corner */}
+        <button
+          onClick={toggleTheme}
+          className="fixed top-4 right-4 p-2 rounded-full bg-white shadow-lg hover:shadow-xl transition-all duration-200 border border-emerald-200"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-emerald-600">
             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-          </svg> : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-emerald-400">
-            <circle cx="12" cy="12" r="5" />
-            <path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" />
-          </svg>}
-      </button>
+          </svg>
+        </button>
 
       <div className="w-full max-w-md">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center space-x-3 mb-4 bg-transparent">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-lg bg-transparent">
-              <img src="https://www.convertia.com/favicon/favicon-convertia.png" alt="Convert-IA" className="h-8 w-8" />
-            </div>
-            <span className="text-3xl font-bold text-emerald-900">Convert-IA</span>
-          </div>
-          <p className="text-emerald-700 font-medium">
-            Plataforma de entrenamiento inteligente
-          </p>
-        </div>
-
         {/* Auth Form */}
         <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-8 border border-emerald-200/60">
+          {/* Logo */}
+          <div className="text-center mb-8">
+            <div className="flex items-center justify-center space-x-3 mb-2">
+              <div className="flex h-14 w-14 items-center justify-center">
+                <img
+                  src="https://www.convertia.com/favicon/favicon-convertia.png"
+                  alt="Convert-IA"
+                  className="h-10 w-10"
+                />
+              </div>
+              <span className="text-3xl font-bold text-emerald-900">Convert-IA</span>
+            </div>
+            <p className="text-emerald-700 font-medium text-sm">
+              Plataforma de entrenamiento inteligente
+            </p>
+          </div>
+
           <div className="text-center mb-6">
             <h2 className="text-2xl font-bold text-emerald-900">
               {isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}
@@ -169,6 +185,8 @@ const AuthPage = () => {
           </div>
         </div>
       </div>
-    </div>;
+      </div>
+    </div>
+  );
 };
 export default AuthPage;
