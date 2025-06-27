@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,6 +23,8 @@ interface ElevenLabsVoice {
     description?: string;
     country?: string;
     is_latin?: boolean;
+    age?: string;
+    use_case?: string;
   };
   category?: string;
   description?: string;
