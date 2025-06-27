@@ -103,7 +103,12 @@ export class SessionManager {
         total_messages: 0,
         user_words_count: 0,
         ai_words_count: 0,
-        duration_seconds: 0
+        duration_seconds: 0,
+        session_status: 'active',
+        scenario_title: config.scenarioTitle,
+        client_emotion: config.clientEmotion,
+        interaction_mode: config.interactionMode,
+        voice_used: config.selectedVoiceName
       };
 
       console.log('SessionManager: Inserting session data:', sessionData);
@@ -130,19 +135,9 @@ export class SessionManager {
       };
 
       console.log('SessionManager: Session created successfully:', data.id);
-      this.toast?.({
-        title: "¡Éxito!",
-        description: "Sesión iniciada correctamente",
-      });
-      
       return data.id;
     } catch (error) {
       console.error('SessionManager: Error starting session:', error);
-      this.toast?.({
-        title: "Error",
-        description: "Error al iniciar la sesión",
-        variant: "destructive",
-      });
       return null;
     }
   }
@@ -158,22 +153,40 @@ export class SessionManager {
       
       console.log('SessionManager: Saving message:', { sessionId, sender, content: content.substring(0, 50) + '...' });
       
-      // Guardar en conversation_messages
-      const { error: messageError } = await supabase
-        .from('conversation_messages')
-        .insert({
-          session_id: sessionId,
-          content,
-          sender,
-          timestamp_in_session: timestampInSession
-        });
+      // Save to conversation_messages with retry logic
+      let retries = 3;
+      let messageError = null;
+      
+      while (retries > 0) {
+        const { error } = await supabase
+          .from('conversation_messages')
+          .insert({
+            session_id: sessionId,
+            content,
+            sender,
+            timestamp_in_session: timestampInSession
+          });
+
+        if (!error) {
+          messageError = null;
+          break;
+        }
+        
+        messageError = error;
+        retries--;
+        console.warn(`Message save attempt failed, retries left: ${retries}`, error);
+        
+        if (retries > 0) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
 
       if (messageError) {
-        console.error('SessionManager: Error saving message:', messageError);
+        console.error('SessionManager: Failed to save message after retries:', messageError);
         throw messageError;
       }
 
-      // Actualizar conversation_log en training_sessions
+      // Update conversation_log in training_sessions
       if (this.currentSession) {
         const updatedLog = {
           ...this.currentSession.conversation_log as any,
@@ -189,7 +202,7 @@ export class SessionManager {
           ]
         };
 
-        // Contar palabras
+        // Count words
         const wordCount = content.split(' ').filter(word => word.trim().length > 0).length;
         if (sender === 'user') {
           updatedLog.user_words_count = (updatedLog.user_words_count || 0) + wordCount;
@@ -197,21 +210,40 @@ export class SessionManager {
           updatedLog.ai_words_count = (updatedLog.ai_words_count || 0) + wordCount;
         }
 
-        const { error: updateError } = await supabase
-          .from('training_sessions')
-          .update({
-            conversation_log: updatedLog,
-            total_messages: this.messageCounter,
-            user_words_count: updatedLog.user_words_count,
-            ai_words_count: updatedLog.ai_words_count
-          })
-          .eq('id', sessionId);
+        // Update session with retry logic
+        retries = 3;
+        let updateError = null;
+        
+        while (retries > 0) {
+          const { error } = await supabase
+            .from('training_sessions')
+            .update({
+              conversation_log: updatedLog,
+              total_messages: this.messageCounter,
+              user_words_count: updatedLog.user_words_count,
+              ai_words_count: updatedLog.ai_words_count
+            })
+            .eq('id', sessionId);
 
-        if (updateError) {
-          console.error('SessionManager: Error updating session log:', updateError);
+          if (!error) {
+            updateError = null;
+            break;
+          }
+          
+          updateError = error;
+          retries--;
+          console.warn(`Session update attempt failed, retries left: ${retries}`, error);
+          
+          if (retries > 0) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
         }
 
-        this.currentSession.conversation_log = updatedLog;
+        if (updateError) {
+          console.error('SessionManager: Failed to update session after retries:', updateError);
+        } else {
+          this.currentSession.conversation_log = updatedLog;
+        }
       }
 
       console.log('SessionManager: Message saved successfully');
@@ -237,7 +269,6 @@ export class SessionManager {
 
       if (error) {
         console.error('SessionManager: Error saving metric:', error);
-        throw error;
       }
     } catch (error) {
       console.error('SessionManager: Error in saveRealTimeMetric:', error);
@@ -265,6 +296,7 @@ export class SessionManager {
           duration_seconds: duration
         };
 
+        // Use upsert to ensure session is updated
         const { error } = await supabase
           .from('training_sessions')
           .update({
@@ -272,7 +304,8 @@ export class SessionManager {
             score: finalScore,
             duration_minutes: durationMinutes,
             duration_seconds: duration,
-            conversation_log: updatedConversationLog
+            conversation_log: updatedConversationLog,
+            session_status: 'completed'
           })
           .eq('id', sessionId);
 
@@ -284,10 +317,11 @@ export class SessionManager {
         this.currentSession = null;
         this.messageCounter = 0;
         this.sessionStartTime = 0;
-        console.log('SessionManager: Session ended successfully');
+        console.log('SessionManager: Session ended successfully with score:', finalScore);
       }
     } catch (error) {
       console.error('SessionManager: Error in endSession:', error);
+      throw error;
     }
   }
 
@@ -295,7 +329,7 @@ export class SessionManager {
     try {
       console.log('SessionManager: Saving evaluation for session:', sessionId);
       
-      // Asegurar que las puntuaciones estén en escala 0-100
+      // Ensure scores are in 0-100 range
       const normalizedEvaluation = {
         session_id: sessionId,
         overall_score: Math.min(100, Math.max(0, evaluation.overall_score || 0)),
@@ -309,9 +343,12 @@ export class SessionManager {
         ai_analysis: evaluation.ai_analysis || {}
       };
 
+      // Use upsert to handle duplicates
       const { error } = await supabase
         .from('session_evaluations')
-        .insert(normalizedEvaluation);
+        .upsert(normalizedEvaluation, {
+          onConflict: 'session_id'
+        });
 
       if (error) {
         console.error('SessionManager: Error saving evaluation:', error);
@@ -321,6 +358,7 @@ export class SessionManager {
       console.log('SessionManager: Evaluation saved successfully');
     } catch (error) {
       console.error('SessionManager: Error in saveEvaluation:', error);
+      throw error;
     }
   }
 
