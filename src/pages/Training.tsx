@@ -1,7 +1,6 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Play, Zap, ArrowLeft, BookOpen, Target, Trophy } from 'lucide-react';
 import EnhancedScenarioSelector from '@/components/training/EnhancedScenarioSelector';
 import LiveTrainingInterface from '@/components/training/LiveTrainingInterface';
 import TrainingSetup from '@/components/training/TrainingSetup';
@@ -16,6 +15,9 @@ const Training = () => {
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
   const [trainingConfig, setTrainingConfig] = useState<any>(null);
   const [evaluationResults, setEvaluationResults] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const iconUrl = "https://www.convertia.com/favicon/favicon-convertia.png";
 
   const handleScenarioSelect = (scenario: Scenario) => {
     setSelectedScenario(scenario);
@@ -23,8 +25,12 @@ const Training = () => {
   };
 
   const handleConfigComplete = (config: any) => {
+    setIsLoading(true);
     setTrainingConfig(config);
-    setCurrentView('training');
+    setTimeout(() => {
+      setIsLoading(false);
+      setCurrentView('training');
+    }, 1000);
   };
 
   const handleTrainingComplete = (evaluation: any) => {
@@ -50,11 +56,28 @@ const Training = () => {
     setTrainingConfig(null);
   };
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <CorporateLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center space-y-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold text-slate-900">Preparando Entrenamiento</h3>
+              <p className="text-slate-600">Configurando el escenario y la IA...</p>
+            </div>
+          </div>
+        </div>
+      </CorporateLayout>
+    );
+  }
+
   // Vista de configuración previa
   if (currentView === 'config' && selectedScenario) {
     return (
       <CorporateLayout>
-        <div className="p-6">
+        <div className="p-4 sm:p-6 max-w-7xl mx-auto">
           <TrainingSetup
             scenario={selectedScenario}
             onStart={handleConfigComplete}
@@ -86,7 +109,7 @@ const Training = () => {
   if (currentView === 'results' && evaluationResults) {
     return (
       <CorporateLayout>
-        <div className="p-6">
+        <div className="p-4 sm:p-6 max-w-7xl mx-auto">
           <EvaluationResults
             evaluation={evaluationResults}
             onRetry={resetTraining}
@@ -98,28 +121,38 @@ const Training = () => {
   }
 
   const trainingStats = [
-    { label: 'Escenarios Disponibles', value: '12', icon: <BookOpen className="h-5 w-5" /> },
-    { label: 'Voces Latinas', value: '23', icon: <Zap className="h-5 w-5" /> },
-    { label: 'Países Cubiertos', value: '9', icon: <Target className="h-5 w-5" /> },
-    { label: 'Entrenamientos Hoy', value: '8', icon: <Trophy className="h-5 w-5" /> }
+    { label: 'Escenarios Disponibles', value: '12', icon: <img src={iconUrl} alt="Escenarios" className="h-5 w-5" /> },
+    { label: 'Voces Latinas', value: '23', icon: <img src={iconUrl} alt="Voces" className="h-5 w-5" /> },
+    { label: 'Países Cubiertos', value: '9', icon: <img src={iconUrl} alt="Países" className="h-5 w-5" /> },
+    { label: 'Entrenamientos Hoy', value: '8', icon: <img src={iconUrl} alt="Entrenamientos" className="h-5 w-5" /> }
   ];
 
   return (
     <CorporateLayout>
-      <div className="p-6 max-w-7xl mx-auto">
+      <div className="p-4 sm:p-6 max-w-7xl mx-auto">
         <CorporateHeader
           title="Centro de Entrenamiento IA"
           subtitle="Mejora tus habilidades de comunicación con simulaciones realistas y voces latinas auténticas"
-          icon={<Zap className="h-6 w-6" />}
+          icon={<img src={iconUrl} alt="Training" className="h-6 w-6" />}
+          actions={
+            <Button
+              variant="outline"
+              size="sm"
+              className="hidden sm:flex items-center gap-2"
+            >
+              <img src={iconUrl} alt="Help" className="h-4 w-4" />
+              Ayuda
+            </Button>
+          }
         />
 
-        <CorporateStats stats={trainingStats} className="mb-8" />
+        <CorporateStats stats={trainingStats} className="mb-6 sm:mb-8" />
 
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 sm:gap-8">
           <div className="xl:col-span-3">
             <CorporateSection title="Selecciona tu Escenario de Entrenamiento">
               <CorporateCard elevated className="p-0">
-                <div className="p-6">
+                <div className="p-4 sm:p-6">
                   <EnhancedScenarioSelector onSelectScenario={handleScenarioSelect} />
                 </div>
               </CorporateCard>
@@ -128,55 +161,32 @@ const Training = () => {
 
           <div className="xl:col-span-1">
             <CorporateSection title="Guía de Entrenamiento">
-              <CorporateCard className="p-6">
+              <CorporateCard className="p-4 sm:p-6">
                 <div className="space-y-4">
-                  <div className="flex items-start space-x-3">
-                    <div className="w-8 h-8 corporate-emerald rounded-full flex items-center justify-center flex-shrink-0">
-                      <span className="text-white font-semibold text-sm">1</span>
+                  {[
+                    { step: '1', title: 'Selecciona Escenario', desc: 'Elige el tipo de práctica que necesitas' },
+                    { step: '2', title: 'Configura Parámetros', desc: 'Elige modo llamada o chat, personalidad del cliente y voz' },
+                    { step: '3', title: 'Practica en Vivo', desc: 'Interactúa por chat o voz con IA' },
+                    { step: '4', title: 'Recibe Feedback', desc: 'Obtén evaluación detallada y consejos' }
+                  ].map((item) => (
+                    <div key={item.step} className="flex items-start space-x-3">
+                      <div className="w-8 h-8 corporate-emerald rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-white font-semibold text-sm">{item.step}</span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-semibold text-gray-900 text-sm sm:text-base">{item.title}</h4>
+                        <p className="text-xs sm:text-sm text-gray-600 mt-1">{item.desc}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900">Selecciona Escenario</h4>
-                      <p className="text-sm text-gray-600 mt-1">Elige el tipo de práctica que necesitas</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start space-x-3">
-                    <div className="w-8 h-8 corporate-emerald rounded-full flex items-center justify-center flex-shrink-0">
-                      <span className="text-white font-semibold text-sm">2</span>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900">Configura Parámetros</h4>
-                      <p className="text-sm text-gray-600 mt-1">Elige modo llamada o chat, personalidad del cliente y voz</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start space-x-3">
-                    <div className="w-8 h-8 corporate-emerald rounded-full flex items-center justify-center flex-shrink-0">
-                      <span className="text-white font-semibold text-sm">3</span>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900">Practica en Vivo</h4>
-                      <p className="text-sm text-gray-600 mt-1">Interactúa por chat o voz con IA</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start space-x-3">
-                    <div className="w-8 h-8 corporate-emerald rounded-full flex items-center justify-center flex-shrink-0">
-                      <span className="text-white font-semibold text-sm">4</span>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900">Recibe Feedback</h4>
-                      <p className="text-sm text-gray-600 mt-1">Obtén evaluación detallada y consejos</p>
-                    </div>
-                  </div>
+                  ))}
                 </div>
 
                 <div className="mt-6 p-4 corporate-emerald-light rounded-lg corporate-emerald-border border">
                   <div className="flex items-center space-x-2">
-                    <Trophy className="h-5 w-5 corporate-text-emerald" />
-                    <h4 className="font-semibold corporate-text-emerald">Voces Latinas Auténticas</h4>
+                    <img src={iconUrl} alt="Voice" className="h-5 w-5" />
+                    <h4 className="font-semibold corporate-text-emerald text-sm sm:text-base">Voces Latinas Auténticas</h4>
                   </div>
-                  <p className="text-sm text-gray-700 mt-1">
+                  <p className="text-xs sm:text-sm text-gray-700 mt-1">
                     Incluimos 23 voces auténticas de toda Latinoamérica, incluyendo el acento paisa de Medellín, para una experiencia completamente realista.
                   </p>
                 </div>
