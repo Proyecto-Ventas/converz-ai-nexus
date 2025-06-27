@@ -1,4 +1,6 @@
 
+import { supabase } from '@/integrations/supabase/client';
+
 interface ElevenLabsVoice {
   voice_id: string;
   name: string;
@@ -14,6 +16,8 @@ interface ElevenLabsVoice {
     age?: string;
     gender?: string;
     use_case?: string;
+    country?: string;
+    is_latin?: boolean;
   };
   description?: string;
   preview_url?: string;
@@ -62,18 +66,16 @@ export class ElevenLabsService {
     try {
       console.log('Fetching voices from ElevenLabs API...');
       
-      const response = await fetch('/api/elevenlabs/voices', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      const { data, error } = await supabase.functions.invoke('elevenlabs-voices');
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (error) {
+        console.error('Error calling elevenlabs-voices function:', error);
+        throw error;
       }
 
-      const data: ElevenLabsVoicesResponse = await response.json();
+      if (!data || !data.voices) {
+        throw new Error('No voices data received');
+      }
       
       // Actualizar cache
       this.voicesCache = data.voices;
@@ -105,7 +107,9 @@ export class ElevenLabsService {
         labels: {
           accent: 'Colombian',
           gender: 'female',
-          description: 'Voz femenina colombiana profesional'
+          description: 'Voz femenina colombiana profesional',
+          country: 'Colombia',
+          is_latin: true
         }
       },
       {
@@ -115,7 +119,9 @@ export class ElevenLabsService {
         labels: {
           accent: 'Colombian',
           gender: 'male',
-          description: 'Voz masculina colombiana natural'
+          description: 'Voz masculina colombiana natural',
+          country: 'Colombia',
+          is_latin: true
         }
       }
     ];
@@ -150,12 +156,8 @@ export class ElevenLabsService {
     console.log(`Generating speech with voice ${voiceId}:`, text.substring(0, 50) + '...');
     
     try {
-      const response = await fetch('/api/elevenlabs/text-to-speech', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const { data, error } = await supabase.functions.invoke('text-to-speech', {
+        body: {
           text: text.length > 500 ? text.substring(0, 500) + '...' : text,
           voice_id: voiceId,
           model_id: 'eleven_multilingual_v2',
@@ -165,14 +167,18 @@ export class ElevenLabsService {
             style: 0.3,
             use_speaker_boost: true
           }
-        }),
+        }
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (error) {
+        console.error('Error calling text-to-speech function:', error);
+        throw error;
       }
 
-      const data = await response.json();
+      if (!data?.audioUrl) {
+        throw new Error('No audio URL received from TTS service');
+      }
+
       return data.audioUrl;
       
     } catch (error) {

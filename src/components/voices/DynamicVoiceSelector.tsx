@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Play, Pause, Volume2, Check, Filter, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
-import { elevenLabsService } from '@/services/elevenLabsService';
+import { supabase } from '@/integrations/supabase/client';
 
 interface DynamicVoiceSelectorProps {
   selectedVoice?: string;
@@ -47,19 +48,86 @@ const DynamicVoiceSelector = ({
     onAudioEnd: () => setTestingVoice(null)
   });
 
+  // Voces por defecto como fallback
+  const getFallbackVoices = (): ElevenLabsVoice[] => {
+    return [
+      {
+        voice_id: 'VmejBeYhbrcTPwDniox7',
+        name: 'Sofia (Colombia)',
+        category: 'professional',
+        labels: {
+          accent: 'Colombian',
+          gender: 'female',
+          description: 'Voz femenina colombiana profesional',
+          country: 'Colombia',
+          is_latin: true
+        }
+      },
+      {
+        voice_id: 'qHkrJuifPpn95wK3rm2A',
+        name: 'Carlos (Colombia)',
+        category: 'professional',
+        labels: {
+          accent: 'Colombian',
+          gender: 'male',
+          description: 'Voz masculina colombiana natural',
+          country: 'Colombia',
+          is_latin: true
+        }
+      },
+      {
+        voice_id: '9BWtsMINqrJLrRacOk9x',
+        name: 'Aria',
+        category: 'professional',
+        labels: {
+          gender: 'female',
+          description: 'Voz femenina clara y profesional',
+          country: 'US',
+          is_latin: false
+        }
+      },
+      {
+        voice_id: 'EXAVITQu4vr4xnSDxMaL',
+        name: 'Sarah',
+        category: 'professional',
+        labels: {
+          gender: 'female',
+          description: 'Voz femenina amigable',
+          country: 'US',
+          is_latin: false
+        }
+      }
+    ];
+  };
+
   const loadVoices = async () => {
     try {
       setLoading(true);
       console.log('Loading voices from ElevenLabs...');
       
-      const fetchedVoices = await elevenLabsService.fetchVoices();
+      const { data, error } = await supabase.functions.invoke('elevenlabs-voices');
       
-      // Filtrar voces según configuración
-      let processedVoices = fetchedVoices;
+      if (error) {
+        console.error('Error calling elevenlabs-voices function:', error);
+        throw error;
+      }
+
+      let processedVoices = data?.voices || [];
+      
+      // Si no hay voces o hay error, usar fallback
+      if (!processedVoices || processedVoices.length === 0) {
+        console.log('Using fallback voices');
+        processedVoices = getFallbackVoices();
+      }
       
       if (priorityOnly) {
-        const priorityIds = elevenLabsService.getPriorityVoices();
-        processedVoices = fetchedVoices.filter(voice => 
+        const priorityIds = [
+          'VmejBeYhbrcTPwDniox7', 'qHkrJuifPpn95wK3rm2A', 'YPh7OporwNAJ28F5IQrm',
+          'J4vZAFDEcpenkMp3f3R9', '3Fx71T889APcHRu4VtQf', 'tTQzD8U9VSnJgfwC6HbY',
+          '86V9x9hrQds83qf7zaGn', 'yvNNEO8EIbfE6QBiyLQx', 'KoIf2KgeJA8uoGcgKIao',
+          'GPzYRfJNEJniCw2WrKzi', '9BWtsMINqrJLrRacOk9x', 'EXAVITQu4vr4xnSDxMaL'
+        ];
+        processedVoices = processedVoices.filter(voice => 
           priorityIds.includes(voice.voice_id)
         );
       }
@@ -78,10 +146,16 @@ const DynamicVoiceSelector = ({
       
     } catch (error) {
       console.error('Error loading voices:', error);
+      
+      // Usar voces de fallback en caso de error
+      const fallbackVoices = getFallbackVoices();
+      setVoices(fallbackVoices);
+      setFilteredVoices(fallbackVoices);
+      
       toast({
-        title: "Error",
-        description: "No se pudieron cargar las voces",
-        variant: "destructive"
+        title: "Usando voces por defecto",
+        description: "No se pudieron cargar las voces dinámicas, usando voces predeterminadas",
+        variant: "default"
       });
     } finally {
       setLoading(false);
@@ -89,7 +163,6 @@ const DynamicVoiceSelector = ({
   };
 
   const refreshVoices = async () => {
-    elevenLabsService.clearCache();
     await loadVoices();
     toast({
       title: "Voces actualizadas",
@@ -122,9 +195,9 @@ const DynamicVoiceSelector = ({
     const testText = `Hola, soy ${voice.name}. Esta es una prueba de mi voz para el entrenamiento de ventas. ¿Cómo puedo ayudarte hoy?`;
     
     try {
-      const audioUrl = await elevenLabsService.generateSpeech(testText, voice.voice_id);
       await playAudio(testText, voice.voice_id);
     } catch (error) {
+      console.error('Error testing voice:', error);
       setTestingVoice(null);
       toast({
         title: "Error",
@@ -296,7 +369,10 @@ const DynamicVoiceSelector = ({
             📊 {filteredVoices.length} voces disponibles
           </p>
           <p className="text-xs text-gray-600 mt-1">
-            Priorizando voces latinas y colombianas para máxima autenticidad
+            {voices.length === getFallbackVoices().length 
+              ? 'Usando voces predeterminadas - configura tu API key de ElevenLabs para más opciones'
+              : 'Priorizando voces latinas y colombianas para máxima autenticidad'
+            }
           </p>
         </div>
       </CardContent>
