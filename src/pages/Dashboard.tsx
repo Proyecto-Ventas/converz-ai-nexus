@@ -19,25 +19,25 @@ const Dashboard = () => {
     .slice(0, 3);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header renovado */}
-        <div className="flex justify-between items-start">
-          <div className="space-y-2">
+    <div className="w-full h-full pl-page">
+      <div className="w-full h-full px-6 py-6 space-y-6">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="space-y-1">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-blue-100 rounded-lg">
-                <Target className="h-6 w-6 text-blue-600" />
+                <Target className="h-5 w-5 text-blue-600" />
               </div>
-              <h1 className="text-3xl font-bold text-slate-900">
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
                 Panel de Control
               </h1>
             </div>
-            <p className="text-xl text-slate-600">
+            <p className="text-base text-gray-600">
               Bienvenido de vuelta. Aquí está tu progreso de entrenamiento.
             </p>
           </div>
-          <Link to="/training">
-            <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg">
+          <Link to="/training" className="w-full sm:w-auto">
+            <Button className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow">
               <Plus className="h-4 w-4 mr-2" />
               Nueva Sesión
             </Button>
@@ -45,19 +45,17 @@ const Dashboard = () => {
         </div>
 
         {/* Estadísticas principales */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-1">
-          <DashboardStats />
-        </div>
+        <DashboardStats />
 
         {/* Fila inferior */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Actividad reciente */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <Card className="h-full">
             <RecentActivity />
-          </div>
+          </Card>
 
           {/* Logros recientes */}
-          <Card className="bg-white shadow-sm border border-slate-200">
+          <Card className="h-full">
             <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100">
               <CardTitle className="flex items-center space-x-2">
                 <Zap className="h-5 w-5 text-yellow-500" />

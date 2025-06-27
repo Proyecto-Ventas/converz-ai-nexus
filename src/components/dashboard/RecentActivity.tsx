@@ -10,11 +10,16 @@ const RecentActivity = () => {
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Actividad Reciente</CardTitle>
+      <div className="h-full flex flex-col">
+        <CardHeader className="border-b border-slate-100">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center space-x-2">
+              <Clock className="h-5 w-5 text-blue-600" />
+              <span>Actividad Reciente</span>
+            </CardTitle>
+          </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex-1 p-6">
           <div className="space-y-4">
             {[...Array(5)].map((_, i) => (
               <div key={i} className="animate-pulse flex items-center space-x-4">
@@ -27,7 +32,7 @@ const RecentActivity = () => {
             ))}
           </div>
         </CardContent>
-      </Card>
+      </div>
     );
   }
 
@@ -76,15 +81,22 @@ const RecentActivity = () => {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Actividad Reciente</CardTitle>
+    <div className="h-full flex flex-col">
+      <CardHeader className="border-b border-slate-100">
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center space-x-2">
+            <Clock className="h-5 w-5 text-blue-600" />
+            <span>Actividad Reciente</span>
+          </CardTitle>
+        </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 p-0">
         {activities.length === 0 ? (
-          <p className="text-center text-gray-500 py-8">
-            No hay actividad reciente. ¡Comienza una sesión de entrenamiento!
-          </p>
+          <div className="flex-1 flex items-center justify-center p-6">
+            <p className="text-center text-gray-500">
+              No hay actividad reciente. ¡Comienza una sesión de entrenamiento!
+            </p>
+          </div>
         ) : (
           <div className="space-y-4">
             {activities.slice(0, 10).map((activity) => (
@@ -110,7 +122,7 @@ const RecentActivity = () => {
           </div>
         )}
       </CardContent>
-    </Card>
+    </div>
   );
 };
 

@@ -68,7 +68,7 @@ const ChallengeCard = ({ challenge, onJoin, onLeave, loading = false }: Challeng
   };
 
   return (
-    <Card className="hover:shadow-lg transition-shadow relative">
+    <Card variant="elevated" className="h-full flex flex-col transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
       {challenge.is_custom && (
         <div className="absolute top-2 left-2">
           <Badge variant="secondary" className="flex items-center space-x-1">
@@ -78,7 +78,7 @@ const ChallengeCard = ({ challenge, onJoin, onLeave, loading = false }: Challeng
         </div>
       )}
       
-      <CardHeader>
+      <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex-1 pr-2">
             <CardTitle className="text-lg">{challenge.title}</CardTitle>
@@ -99,7 +99,7 @@ const ChallengeCard = ({ challenge, onJoin, onLeave, loading = false }: Challeng
         </div>
       </CardHeader>
       
-      <CardContent className="space-y-4">
+      <CardContent className="flex-1 space-y-4">
         {/* Información del desafío */}
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div className="flex items-center space-x-2">
@@ -144,7 +144,7 @@ const ChallengeCard = ({ challenge, onJoin, onLeave, loading = false }: Challeng
         )}
 
         {/* Botón de acción */}
-        <div className="pt-4">
+        <div className="pt-4 mt-auto">
           {challenge.is_participating ? (
             <div className="space-y-2">
               <Badge variant="default" className="w-full justify-center py-2">

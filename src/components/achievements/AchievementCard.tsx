@@ -66,8 +66,11 @@ const AchievementCard = ({ userAchievement, achievement, showProgress = true }: 
   };
 
   return (
-    <Card className={`transition-all duration-200 ${isEarned ? 'ring-2 ring-yellow-400 shadow-lg' : 'opacity-75'}`}>
-      <CardContent className="p-6">
+    <Card 
+      variant="elevated"
+      className={`h-full transition-all duration-200 ${isEarned ? 'ring-2 ring-yellow-400' : 'opacity-90 hover:opacity-100'}`}
+    >
+      <CardContent className="p-6 h-full flex flex-col">
         <div className="flex items-start space-x-4">
           {/* Icono */}
           <div className="flex-shrink-0">
@@ -75,7 +78,7 @@ const AchievementCard = ({ userAchievement, achievement, showProgress = true }: 
           </div>
 
           {/* Contenido */}
-          <div className="flex-1 space-y-3">
+          <div className="flex-1 space-y-3 flex flex-col h-full">
             {/* Título y estado */}
             <div className="flex items-start justify-between">
               <div>
@@ -94,7 +97,7 @@ const AchievementCard = ({ userAchievement, achievement, showProgress = true }: 
             </div>
 
             {/* Categoría y XP */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mt-auto">
               <Badge variant="outline" className={getCategoryColor(achievementData.category)}>
                 {achievementData.category || 'General'}
               </Badge>

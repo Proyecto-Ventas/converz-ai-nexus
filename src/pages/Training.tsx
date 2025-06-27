@@ -152,7 +152,7 @@ const Training = () => {
           <div className="xl:col-span-3">
             <CorporateSection title="Selecciona tu Escenario de Entrenamiento">
               <CorporateCard elevated className="p-0">
-                <div className="p-4 sm:p-6">
+                <div className="py-6 min-h-screen">
                   <EnhancedScenarioSelector onSelectScenario={handleScenarioSelect} />
                 </div>
               </CorporateCard>

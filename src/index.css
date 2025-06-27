@@ -111,6 +111,24 @@
   @apply hover:bg-emerald-50 hover:border-emerald-300;
 }
 
+/* Utilidad global para diseño fluido */
+[class^="max-w-"],
+[class*=" max-w-"] {
+  max-width: 100% !important;
+}
+.container {
+  max-width: 100% !important;
+}
+.mx-auto {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+/* Uniform left padding for all module pages */
+.pl-page {
+  padding-left: 5px !important;
+}
+
 /* Animaciones mejoradas */
 @keyframes fadeInUp {
   from {

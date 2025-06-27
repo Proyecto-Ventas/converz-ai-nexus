@@ -215,10 +215,10 @@ const KnowledgeManagerEnhanced = () => {
                   </div>
                 ) : (
                   filteredDocuments.map((doc) => (
-                    <Card key={doc.id} className="hover:shadow-md transition-shadow">
-                      <CardContent className="p-4">
+                    <Card key={doc.id} variant="elevated" className="hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
+                      <CardContent className="p-5">
                         <div className="flex items-center justify-between">
-                          <div className="flex-1">
+                          <div className="flex-1 space-y-3">
                             <div className="flex items-center space-x-3">
                               <FileText className="h-5 w-5 text-purple-600" />
                               <div>
@@ -228,7 +228,7 @@ const KnowledgeManagerEnhanced = () => {
                                 </p>
                               </div>
                             </div>
-                            <div className="flex items-center space-x-4 mt-3">
+                            <div className="flex flex-wrap items-center gap-2 pt-2 mt-3 border-t border-gray-100">
                               <Badge variant="outline">{doc.document_type}</Badge>
                               <span className="text-xs text-gray-500">
                                 {formatFileSize(doc.content?.length || 0)}
@@ -243,7 +243,7 @@ const KnowledgeManagerEnhanced = () => {
                               ))}
                             </div>
                           </div>
-                          <div className="flex space-x-2">
+                          <div className="flex space-x-2 flex-shrink-0">
                             <Dialog>
                               <DialogTrigger asChild>
                                 <Button variant="outline" size="sm" onClick={() => setSelectedDocument(doc)}>

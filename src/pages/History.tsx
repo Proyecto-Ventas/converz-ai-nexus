@@ -148,7 +148,7 @@ const History = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6 pl-page">
         <div className="max-w-7xl mx-auto">
           <div className="animate-pulse space-y-6">
             {[...Array(5)].map((_, i) => (
@@ -165,7 +165,7 @@ const History = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6 pl-page">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center">

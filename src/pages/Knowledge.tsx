@@ -11,8 +11,8 @@ const Knowledge = () => {
   const [selectedVoice, setSelectedVoice] = useState<string>('');
 
   return (
-    <div className="p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
-      <div className="max-w-7xl mx-auto">
+    <div className="py-6 min-h-screen pl-page">
+      <div className="w-full px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">

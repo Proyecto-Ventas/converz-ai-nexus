@@ -146,7 +146,7 @@ const Profile = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6">
+      <div className="min-h-screen bg-gray-50 p-6 pl-page">
         <div className="max-w-4xl mx-auto">
           <div className="animate-pulse space-y-6">
             <Card>
@@ -161,7 +161,7 @@ const Profile = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-6 pl-page">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header del perfil */}
         <Card>
