@@ -442,7 +442,7 @@ const LiveTrainingInterface = ({
       // Auto-send if there's text
       if (inputMessage.trim()) {
         console.log('Auto-sending message after stopping mic');
-        sendMessage();
+        handleSendMessage();
       }
     } else {
       console.log('Starting to listen...');
