@@ -91,7 +91,7 @@ const AuthPage = () => {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center space-x-3 mb-4">
+          <div className="flex items-center justify-center space-x-3 mb-4 bg-transparent">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-lg bg-transparent">
               <img src="https://www.convertia.com/favicon/favicon-convertia.png" alt="Convert-IA" className="h-8 w-8" />
             </div>
