@@ -77,24 +77,16 @@ const AuthPage = () => {
       setLoading(false);
     }
   };
-
-  return (
-    <div className="min-h-screen relative">
+  return <div className="min-h-screen relative">
       {/* Fondo con gradiente personalizado */}
-      <div 
-        className="absolute inset-0 z-0"
-        style={{
-          background: 'linear-gradient(135deg, hsl(160, 92%, 14%) 0%, rgba(255,255,255,0) 100%)',
-        }}
-      />
+      <div className="absolute inset-0 z-0" style={{
+      background: 'linear-gradient(135deg, hsl(160, 92%, 14%) 0%, rgba(255,255,255,0) 100%)'
+    }} />
       
       {/* Contenido */}
       <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
         {/* Theme Toggle - Fixed to top right corner */}
-        <button
-          onClick={toggleTheme}
-          className="fixed top-4 right-4 p-2 rounded-full bg-white shadow-lg hover:shadow-xl transition-all duration-200 border border-emerald-200"
-        >
+        <button onClick={toggleTheme} className="fixed top-4 right-4 p-2 rounded-full bg-white shadow-lg hover:shadow-xl transition-all duration-200 border border-emerald-200">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-emerald-600">
             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
           </svg>
@@ -107,11 +99,7 @@ const AuthPage = () => {
           <div className="text-center mb-8">
             <div className="flex items-center justify-center space-x-3 mb-2">
               <div className="flex h-14 w-14 items-center justify-center">
-                <img
-                  src="https://www.convertia.com/favicon/favicon-convertia.png"
-                  alt="Convert-IA"
-                  className="h-10 w-10"
-                />
+                <img src="https://www.convertia.com/favicon/favicon-convertia.png" alt="Convert-IA" className="h-10 w-10" />
               </div>
               <span className="text-3xl font-bold text-emerald-900">Convert-IA</span>
             </div>
@@ -121,12 +109,8 @@ const AuthPage = () => {
           </div>
 
           <div className="text-center mb-6">
-            <h2 className="text-2xl font-bold text-emerald-900">
-              {isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}
-            </h2>
-            <p className="text-emerald-600 mt-2 font-medium">
-              {isLogin ? 'Accede a tu entrenamiento personalizado' : 'Únete a la plataforma de entrenamiento'}
-            </p>
+            
+            
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -136,9 +120,9 @@ const AuthPage = () => {
                   <circle cx="12" cy="7" r="4" />
                 </svg>
                 <Input type="text" placeholder="Nombre completo" value={formData.fullName} onChange={e => setFormData({
-              ...formData,
-              fullName: e.target.value
-            })} className="pl-10 h-12 border-emerald-200 focus:border-emerald-500 focus:ring-emerald-500 bg-white/80" required={!isLogin} />
+                ...formData,
+                fullName: e.target.value
+              })} className="pl-10 h-12 border-emerald-200 focus:border-emerald-500 focus:ring-emerald-500 bg-white/80" required={!isLogin} />
               </div>}
 
             <div className="relative">
@@ -147,9 +131,9 @@ const AuthPage = () => {
                 <polyline points="22,6 12,13 2,6" />
               </svg>
               <Input type="email" placeholder="Correo electrónico" value={formData.email} onChange={e => setFormData({
-              ...formData,
-              email: e.target.value
-            })} className="pl-10 h-12 border-emerald-200 focus:border-emerald-500 focus:ring-emerald-500 bg-white/80" required />
+                ...formData,
+                email: e.target.value
+              })} className="pl-10 h-12 border-emerald-200 focus:border-emerald-500 focus:ring-emerald-500 bg-white/80" required />
             </div>
 
             <div className="relative">
@@ -159,9 +143,9 @@ const AuthPage = () => {
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
               <Input type={showPassword ? "text" : "password"} placeholder="Contraseña" value={formData.password} onChange={e => setFormData({
-              ...formData,
-              password: e.target.value
-            })} className="pl-10 pr-10 h-12 border-emerald-200 focus:border-emerald-500 focus:ring-emerald-500 bg-white/80" required />
+                ...formData,
+                password: e.target.value
+              })} className="pl-10 pr-10 h-12 border-emerald-200 focus:border-emerald-500 focus:ring-emerald-500 bg-white/80" required />
               <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-emerald-400 hover:text-emerald-600">
                 {showPassword ? <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
@@ -186,7 +170,6 @@ const AuthPage = () => {
         </div>
       </div>
       </div>
-    </div>
-  );
+    </div>;
 };
 export default AuthPage;
