@@ -1,9 +1,10 @@
 
 import React from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import EnhancedSidebar from './EnhancedSidebar';
+import ProfessionalSidebar from './ProfessionalSidebar';
 import AuthPage from './AuthPage';
 import CommandPalette from './CommandPalette';
+import NavigationBreadcrumb from './NavigationBreadcrumb';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -14,10 +15,10 @@ const Layout = ({ children }: LayoutProps) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 flex items-center justify-center">
+      <div className="app-container flex items-center justify-center bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-100">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-slate-600">Cargando...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
+          <p className="text-emerald-700 font-medium">Cargando Convert-IA...</p>
         </div>
       </div>
     );
@@ -28,10 +29,11 @@ const Layout = ({ children }: LayoutProps) => {
   }
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 w-full overflow-hidden">
-      <EnhancedSidebar />
-      <main className="flex-1 overflow-auto bg-white/60 backdrop-blur-sm">
+    <div className="app-container flex bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-100">
+      <ProfessionalSidebar />
+      <main className="flex-1 main-content">
         <div className="h-full">
+          <NavigationBreadcrumb />
           {children}
         </div>
       </main>
