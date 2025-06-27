@@ -99,7 +99,11 @@ export class SessionManager {
         scenario_id: config.scenario || 'sales-cold-call',
         duration_minutes: 0,
         score: 0,
-        conversation_log: conversationLog as any
+        conversation_log: conversationLog as any,
+        total_messages: 0,
+        user_words_count: 0,
+        ai_words_count: 0,
+        duration_seconds: 0
       };
 
       console.log('SessionManager: Inserting session data:', sessionData);
@@ -152,6 +156,8 @@ export class SessionManager {
     try {
       this.messageCounter++;
       
+      console.log('SessionManager: Saving message:', { sessionId, sender, content: content.substring(0, 50) + '...' });
+      
       // Guardar en conversation_messages
       const { error: messageError } = await supabase
         .from('conversation_messages')
@@ -184,14 +190,14 @@ export class SessionManager {
         };
 
         // Contar palabras
-        const wordCount = content.split(' ').length;
+        const wordCount = content.split(' ').filter(word => word.trim().length > 0).length;
         if (sender === 'user') {
           updatedLog.user_words_count = (updatedLog.user_words_count || 0) + wordCount;
         } else {
           updatedLog.ai_words_count = (updatedLog.ai_words_count || 0) + wordCount;
         }
 
-        await supabase
+        const { error: updateError } = await supabase
           .from('training_sessions')
           .update({
             conversation_log: updatedLog,
@@ -200,6 +206,10 @@ export class SessionManager {
             ai_words_count: updatedLog.ai_words_count
           })
           .eq('id', sessionId);
+
+        if (updateError) {
+          console.error('SessionManager: Error updating session log:', updateError);
+        }
 
         this.currentSession.conversation_log = updatedLog;
       }
@@ -283,6 +293,8 @@ export class SessionManager {
 
   async saveEvaluation(sessionId: string, evaluation: any): Promise<void> {
     try {
+      console.log('SessionManager: Saving evaluation for session:', sessionId);
+      
       // Asegurar que las puntuaciones estén en escala 0-100
       const normalizedEvaluation = {
         session_id: sessionId,

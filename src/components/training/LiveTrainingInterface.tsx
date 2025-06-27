@@ -53,6 +53,8 @@ const LiveTrainingInterface = ({
   const [clientEmotion, setClientEmotion] = useState(initialClientEmotion);
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
   const [sessionStartTime] = useState(Date.now());
+  const [currentUserInput, setCurrentUserInput] = useState('');
+  const [waitingForAI, setWaitingForAI] = useState(false);
 
   const sessionManager = useSessionManager();
   const { toast } = useToast();
@@ -61,14 +63,21 @@ const LiveTrainingInterface = ({
     isListening,
     isSupported: speechSupported,
     transcript,
+    interimTranscript,
     startListening,
     stopListening,
     cleanup
   } = useSpeechRecognition({
     onResult: (result) => {
       console.log('Speech recognition result:', result);
-      setInputMessage(result);
-    }
+      setCurrentUserInput(result);
+      // Auto-send message after speech recognition
+      if (mode === 'call' && result.trim()) {
+        handleSendMessage(result.trim());
+      }
+    },
+    continuous: true,
+    autoRestart: mode === 'call'
   });
 
   const {
@@ -80,11 +89,17 @@ const LiveTrainingInterface = ({
     setVolume
   } = useAudioPlayer({
     onAudioEnd: () => {
-      console.log('Audio playback ended');
+      console.log('Audio playback ended, resuming speech recognition');
+      setWaitingForAI(false);
+      if (mode === 'call' && !isListening) {
+        setTimeout(() => {
+          startListening();
+        }, 500);
+      }
     }
   });
   
-  // Estado de evaluación en tiempo real
+  // Estado de evaluación en tiempo real mejorado
   const [realTimeMetrics, setRealTimeMetrics] = useState({
     rapport: 45,
     clarity: 50,
@@ -99,9 +114,10 @@ const LiveTrainingInterface = ({
     liveCoaching: [] as string[]
   });
 
-  // Referencias para el seguimiento
+  // Referencias para el seguimiento mejorado
   const lastMessageTime = useRef<number>(Date.now());
   const evaluationInterval = useRef<NodeJS.Timeout>();
+  const messageHistory = useRef<Message[]>([]);
 
   // Inicializar sesión
   useEffect(() => {
@@ -124,18 +140,22 @@ const LiveTrainingInterface = ({
         await addMessage(welcomeMessage, 'ai', newSessionId);
         
         if (mode === 'call') {
-          console.log('Mode is call, generating initial audio...');
+          console.log('Mode is call, generating initial audio and starting listening...');
           await generateAndPlayAudio(welcomeMessage);
+          // Iniciar reconocimiento de voz automáticamente
+          setTimeout(() => {
+            startListening();
+          }, 1000);
         }
       }
     };
 
     initSession();
 
-    // Evaluación cada 30 segundos
+    // Evaluación cada 15 segundos para ser más responsiva
     evaluationInterval.current = setInterval(() => {
       updateRealTimeEvaluation();
-    }, 30000);
+    }, 15000);
 
     return () => {
       if (evaluationInterval.current) {
@@ -169,7 +189,11 @@ const LiveTrainingInterface = ({
       timestamp
     };
 
-    setMessages(prev => [...prev, newMessage]);
+    setMessages(prev => {
+      const updated = [...prev, newMessage];
+      messageHistory.current = updated;
+      return updated;
+    });
     
     // Guardar mensaje en la base de datos
     const sessionIdToUse = currentSessionId || sessionId;
@@ -188,28 +212,60 @@ const LiveTrainingInterface = ({
 
   const updateRealTimeEvaluation = () => {
     const sessionDuration = Math.floor((Date.now() - sessionStartTime) / 1000);
-    const userMessages = messages.filter(m => m.sender === 'user');
+    const userMessages = messageHistory.current.filter(m => m.sender === 'user');
+    const aiMessages = messageHistory.current.filter(m => m.sender === 'ai');
     const responseTime = (Date.now() - lastMessageTime.current) / 1000;
 
-    // Algoritmo de evaluación más exigente (0-100)
-    let rapport = Math.max(0, 45 + (userMessages.length * 2) - (responseTime > 10 ? 15 : 0));
-    let clarity = Math.min(100, 40 + (userMessages.filter(m => m.content.length > 20).length * 8));
-    let empathy = Math.max(0, 35 + (userMessages.filter(m => 
-      /gracias|perdón|disculpe|entiendo/i.test(m.content)
-    ).length * 12));
-    let accuracy = Math.min(100, 50 + (userMessages.filter(m => 
-      m.content.includes('?') || /específico|detalle|información/i.test(m.content)
-    ).length * 6));
+    // Algoritmo de evaluación mejorado y más preciso
+    let rapport = 30; // Base más baja
+    let clarity = 35;
+    let empathy = 30;
+    let accuracy = 40;
 
-    // Penalizaciones por comportamientos no deseados
-    if (userMessages.some(m => /precio|costo|cuánto/i.test(m.content) && messages.length < 6)) {
-      rapport -= 20;
-      accuracy -= 15;
+    // Bonificaciones por buenas prácticas
+    if (userMessages.length > 0) {
+      // Rapport: Conexión y construcción de relación
+      rapport += Math.min(30, userMessages.length * 5); // Hasta 30 puntos por participación
+      
+      // Bonificación por saludos y cortesía
+      if (userMessages.some(m => /hola|buenos días|buenas tardes|mucho gusto|mi nombre es/i.test(m.content))) {
+        rapport += 15;
+      }
+
+      // Clarity: Claridad en la comunicación
+      const avgMessageLength = userMessages.reduce((acc, m) => acc + m.content.length, 0) / userMessages.length;
+      if (avgMessageLength > 20) clarity += 20; // Mensajes sustanciales
+      if (avgMessageLength > 50) clarity += 15; // Mensajes detallados
+
+      // Empathy: Empatía y comprensión
+      const empathyKeywords = /entiendo|comprendo|disculpe|perdón|gracias|me imagino|siento|lamento/i;
+      const empathyCount = userMessages.filter(m => empathyKeywords.test(m.content)).length;
+      empathy += Math.min(25, empathyCount * 8);
+
+      // Accuracy: Precisión y relevancia
+      const questionCount = userMessages.filter(m => m.content.includes('?')).length;
+      accuracy += Math.min(20, questionCount * 5);
+      
+      // Bonificación por mencionar servicios/productos específicos
+      if (userMessages.some(m => /servicio|producto|precio|oferta|beneficio|solución/i.test(m.content))) {
+        accuracy += 15;
+      }
     }
 
-    if (responseTime > 15) {
-      clarity -= 25;
-      rapport -= 10;
+    // Penalizaciones por comportamientos negativos
+    if (responseTime > 10) {
+      rapport -= 15;
+      clarity -= 10;
+    }
+
+    if (userMessages.length > 0 && userMessages[0].content.length < 10) {
+      clarity -= 10; // Primer mensaje muy corto
+    }
+
+    // Penalización por preguntar precio muy pronto
+    if (userMessages.length < 3 && userMessages.some(m => /cuánto|precio|costo|vale/i.test(m.content))) {
+      rapport -= 20;
+      accuracy -= 15;
     }
 
     // Asegurar rango 0-100
@@ -220,29 +276,37 @@ const LiveTrainingInterface = ({
 
     const overallScore = Math.round((rapport + clarity + empathy + accuracy) / 4);
 
-    // Feedback en tiempo real
+    // Feedback en tiempo real mejorado
     const liveCoaching = [];
     const criticalIssues = [];
     const positivePoints = [];
 
     if (overallScore < 40) {
-      liveCoaching.push("Necesitas conectar mejor con el cliente");
-      criticalIssues.push("Puntuación baja");
-    }
-    if (responseTime > 10) {
-      liveCoaching.push("Responde más rápido para mantener el interés");
-      criticalIssues.push("Respuesta lenta");
-    }
-    if (rapport < 50) {
-      liveCoaching.push("Muestra más empatía y interés genuino");
-    }
-    if (clarity < 50) {
-      liveCoaching.push("Sé más claro en tu comunicación");
+      liveCoaching.push("Necesitas mejorar tu approach inicial");
+      criticalIssues.push("Score bajo");
+    } else if (overallScore >= 70) {
+      positivePoints.push("Excelente desempeño");
     }
 
-    if (rapport >= 70) positivePoints.push("Buena conexión");
-    if (clarity >= 70) positivePoints.push("Comunicación clara");
-    if (empathy >= 70) positivePoints.push("Excelente empatía");
+    if (responseTime > 8) {
+      liveCoaching.push("Responde más rápido para mantener engagement");
+      criticalIssues.push("Respuesta lenta");
+    }
+
+    if (rapport < 50) {
+      liveCoaching.push("Construye más rapport con el cliente");
+    } else if (rapport >= 75) {
+      positivePoints.push("Excelente conexión");
+    }
+
+    if (clarity < 50) {
+      liveCoaching.push("Sé más claro y específico");
+    } else if (clarity >= 75) {
+      positivePoints.push("Comunicación muy clara");
+    }
+
+    if (empathy >= 70) positivePoints.push("Muy empático");
+    if (accuracy >= 70) positivePoints.push("Respuestas precisas");
 
     setRealTimeMetrics({
       rapport,
@@ -256,9 +320,9 @@ const LiveTrainingInterface = ({
       criticalIssues,
       positivePoints,
       suggestions: [
-        "Haz más preguntas abiertas",
-        "Escucha activamente antes de ofrecer",
-        "Construye rapport antes de vender"
+        "Presenta tu empresa y nombre",
+        "Haz preguntas de descubrimiento",
+        "Escucha activamente antes de ofrecer"
       ],
       liveCoaching
     });
@@ -276,25 +340,32 @@ const LiveTrainingInterface = ({
   const generateAndPlayAudio = async (text: string) => {
     if (!text.trim()) return;
     console.log('Generating audio for:', text.substring(0, 50) + '...');
-    console.log('Using voice ID:', selectedVoiceId);
     
     try {
+      setWaitingForAI(true);
+      if (isListening) {
+        stopListening();
+      }
+      
       await playAudio(text, selectedVoiceId);
     } catch (error) {
       console.error('Error generating/playing audio:', error);
+      setWaitingForAI(false);
     }
   };
 
-  const sendMessage = async () => {
-    if (!inputMessage.trim() || isProcessing) return;
+  const handleSendMessage = async (messageText?: string) => {
+    const userMessage = messageText || inputMessage.trim();
+    if (!userMessage || isProcessing) return;
 
-    const userMessage = inputMessage.trim();
     setInputMessage('');
+    setCurrentUserInput('');
     
     // Agregar mensaje del usuario
     await addMessage(userMessage, 'user');
 
     setIsProcessing(true);
+    setWaitingForAI(true);
 
     try {
       console.log('Sending message to AI:', userMessage);
@@ -303,7 +374,7 @@ const LiveTrainingInterface = ({
       const response = await supabase.functions.invoke('enhanced-ai-conversation', {
         body: {
           messages: [
-            ...messages.map(m => ({
+            ...messageHistory.current.map(m => ({
               role: m.sender === 'user' ? 'user' : 'assistant',
               content: m.content
             })),
@@ -334,10 +405,13 @@ const LiveTrainingInterface = ({
       if (mode === 'call') {
         console.log('Call mode active, generating audio...');
         await generateAndPlayAudio(aiResponse);
+      } else {
+        setWaitingForAI(false);
       }
 
     } catch (error) {
       console.error('Error sending message:', error);
+      setWaitingForAI(false);
       toast({
         title: "Error",
         description: "No se pudo procesar el mensaje",
@@ -384,6 +458,8 @@ const LiveTrainingInterface = ({
 
   const handleEndSession = async () => {
     console.log('Ending session...');
+    cleanup();
+    
     if (sessionId) {
       await sessionManager.endSession(sessionId, realTimeMetrics.overallScore);
       
@@ -402,11 +478,11 @@ const LiveTrainingInterface = ({
         specific_feedback: `Sesión completada con una puntuación de ${realTimeMetrics.overallScore}/100. 
           ${realTimeMetrics.overallScore >= 70 ? 'Buen desempeño general.' : 'Hay áreas importantes que mejorar.'}
           Tiempo total: ${Math.floor((Date.now() - sessionStartTime) / 1000 / 60)} minutos.
-          Mensajes intercambiados: ${messages.length}.`,
+          Mensajes intercambiados: ${messageHistory.current.length}.`,
         ai_analysis: {
           session_duration: Math.floor((Date.now() - sessionStartTime) / 1000),
-          total_messages: messages.length,
-          user_messages: messages.filter(m => m.sender === 'user').length,
+          total_messages: messageHistory.current.length,
+          user_messages: messageHistory.current.filter(m => m.sender === 'user').length,
           avg_response_time: realTimeMetrics.responseTime
         }
       };
@@ -443,10 +519,19 @@ const LiveTrainingInterface = ({
                   {mode === 'call' ? 'Llamada' : 'Chat'}
                 </Badge>
                 <Badge variant="outline" className="corporate-emerald-border corporate-text-emerald">{clientEmotion}</Badge>
-                {mode === 'call' && (isPlaying || audioLoading) && (
-                  <Badge variant="secondary" className="animate-pulse">
-                    {audioLoading ? 'Generando...' : 'Reproduciendo'}
-                  </Badge>
+                {mode === 'call' && (
+                  <>
+                    {isListening && !waitingForAI && (
+                      <Badge variant="secondary" className="animate-pulse bg-green-100 text-green-700">
+                        🎤 Escuchando...
+                      </Badge>
+                    )}
+                    {waitingForAI && (
+                      <Badge variant="secondary" className="animate-pulse bg-blue-100 text-blue-700">
+                        {audioLoading ? '⏳ Generando...' : '🔊 Reproduciendo...'}
+                      </Badge>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -477,7 +562,10 @@ const LiveTrainingInterface = ({
               <div className="space-y-4">
                 <VoiceSelectorSimple
                   selectedVoice={selectedVoiceId}
-                  onVoiceSelect={handleVoiceSelect}
+                  onVoiceSelect={(voiceId, voiceName) => {
+                    setSelectedVoiceId(voiceId);
+                    setSelectedVoiceName(voiceName);
+                  }}
                 />
                 
                 <div className="flex items-center space-x-4">
@@ -523,64 +611,62 @@ const LiveTrainingInterface = ({
           <div className="lg:col-span-2">
             <ConversationTranscript
               messages={messages}
-              isListening={isListening}
-              currentUserText={transcript}
+              isListening={isListening && mode === 'call'}
+              currentUserText={mode === 'call' ? (interimTranscript || currentUserInput) : ''}
               className="h-[500px]"
             />
 
-            {/* Input de mensaje */}
-            <Card className="mt-4 corporate-emerald-border border">
-              <CardContent className="p-3">
-                <div className="flex space-x-2">
-                  <Input
-                    value={inputMessage}
-                    onChange={(e) => setInputMessage(e.target.value)}
-                    placeholder={mode === 'call' ? "Habla o escribe tu mensaje..." : "Escribe tu mensaje..."}
-                    onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-                    disabled={isProcessing}
-                    className="flex-1"
-                  />
-                  
-                  {mode === 'call' && speechSupported && (
+            {/* Input de mensaje - Solo visible en modo chat */}
+            {mode === 'chat' && (
+              <Card className="mt-4 corporate-emerald-border border">
+                <CardContent className="p-3">
+                  <div className="flex space-x-2">
+                    <Input
+                      value={inputMessage}
+                      onChange={(e) => setInputMessage(e.target.value)}
+                      placeholder="Escribe tu mensaje..."
+                      onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+                      disabled={isProcessing}
+                      className="flex-1"
+                    />
+                    
                     <Button
-                      onClick={handleMicToggle}
-                      variant={isListening ? 'default' : 'outline'}
+                      onClick={() => handleSendMessage()}
+                      disabled={!inputMessage.trim() || isProcessing}
                       size="sm"
-                      disabled={isProcessing || isPlaying}
-                      className={isListening ? 'corporate-emerald text-white' : 'corporate-hover-emerald'}
+                      className="corporate-emerald text-white hover:from-emerald-600 hover:to-teal-700"
                     >
-                      {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                      <Send className="h-4 w-4" />
                     </Button>
-                  )}
-                  
-                  <Button
-                    onClick={sendMessage}
-                    disabled={!inputMessage.trim() || isProcessing}
-                    size="sm"
-                    className="corporate-emerald text-white hover:from-emerald-600 hover:to-teal-700"
-                  >
-                    <Send className="h-4 w-4" />
-                  </Button>
-                </div>
-                
-                <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
-                  <div className="flex items-center space-x-2">
-                    <div className={`w-2 h-2 rounded-full ${
-                      mode === 'call' ? 'bg-emerald-400' : 'bg-slate-400'
-                    }`} />
-                    <span>Modo: {mode === 'call' ? 'Llamada' : 'Chat'}</span>
                   </div>
-                  
-                  {mode === 'call' && (
-                    <div className="flex items-center space-x-2">
-                      {isListening && <span className="animate-pulse">🎤 Escuchando...</span>}
-                      {isPlaying && <span className="animate-pulse">🔊 Reproduciendo...</span>}
-                      {audioLoading && <span className="animate-pulse">⏳ Generando audio...</span>}
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Status en modo llamada */}
+            {mode === 'call' && (
+              <Card className="mt-4 corporate-emerald-border border">
+                <CardContent className="p-3">
+                  <div className="text-center">
+                    {waitingForAI ? (
+                      <div className="flex items-center justify-center space-x-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-emerald-600"></div>
+                        <span className="text-sm text-emerald-600">
+                          {audioLoading ? 'Generando respuesta...' : 'Reproduciendo audio...'}
+                        </span>
+                      </div>
+                    ) : isListening ? (
+                      <div className="flex items-center justify-center space-x-2">
+                        <div className="animate-pulse rounded-full h-4 w-4 bg-green-500"></div>
+                        <span className="text-sm text-green-600">Escuchando... Habla naturalmente</span>
+                      </div>
+                    ) : (
+                      <span className="text-sm text-gray-500">Modo llamada - Conversación automática</span>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Evaluación en tiempo real */}
