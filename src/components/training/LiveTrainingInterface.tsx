@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Mic, MicOff, Send, Phone, PhoneOff, ArrowLeft, Volume2, VolumeX, Settings } from 'lucide-react';
+import { Mic, MicOff, Send, Phone, PhoneOff, ArrowLeft, Volume2, VolumeX, Settings, MessageCircle, Headphones, Activity } from 'lucide-react';
 import { useSessionManager } from './SessionManager';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
@@ -532,177 +532,240 @@ const LiveTrainingInterface = ({
   const currentDuration = Math.floor((Date.now() - sessionStartTime) / 1000);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-emerald-50 p-4">
-      <div className="max-w-7xl mx-auto">
-        {/* Header compacto */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-4">
-            <Button variant="outline" onClick={onBack} size="sm" className="corporate-hover-emerald">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Volver
-            </Button>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">{scenarioTitle}</h1>
-              <div className="flex items-center space-x-2 mt-1">
-                <Badge className={mode === 'call' ? 'corporate-emerald text-white' : 'bg-slate-500 text-white'}>
-                  {mode === 'call' ? 'Llamada' : 'Chat'}
-                </Badge>
-                <Badge variant="outline" className="corporate-emerald-border corporate-text-emerald">{clientEmotion}</Badge>
-                {mode === 'call' && (
-                  <>
-                    {isListening && !waitingForAI && (
-                      <Badge variant="secondary" className="animate-pulse bg-green-100 text-green-700">
-                        🎤 Escuchando...
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-green-50">
+      <div className="max-w-7xl mx-auto p-4">
+        {/* Enhanced Header with Corporate Design */}
+        <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-emerald-200/60 p-4 mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Button 
+                variant="outline" 
+                onClick={onBack} 
+                size="sm" 
+                className="corporate-hover-emerald border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Volver
+              </Button>
+              
+              <div className="flex items-center space-x-3">
+                <div className="corporate-emerald rounded-lg p-2">
+                  {mode === 'chat' ? (
+                    <MessageCircle className="h-5 w-5 text-white" />
+                  ) : (
+                    <Headphones className="h-5 w-5 text-white" />
+                  )}
+                </div>
+                <div>
+                  <h1 className="text-xl font-bold text-emerald-900">{scenarioTitle}</h1>
+                  <div className="flex items-center space-x-2 mt-1">
+                    <Badge className={mode === 'call' ? 'corporate-emerald text-white' : 'bg-slate-500 text-white'}>
+                      {mode === 'call' ? '🎤 Llamada' : '💬 Chat'}
+                    </Badge>
+                    <Badge variant="outline" className="corporate-emerald-border corporate-text-emerald">
+                      Emoción: {clientEmotion}
+                    </Badge>
+                    {mode === 'call' && selectedVoiceName && (
+                      <Badge variant="outline" className="corporate-emerald-border corporate-text-emerald">
+                        🗣️ {selectedVoiceName}
                       </Badge>
                     )}
-                    {waitingForAI && (
-                      <Badge variant="secondary" className="animate-pulse bg-blue-100 text-blue-700">
-                        🔊 Cliente hablando...
-                      </Badge>
-                    )}
-                  </>
-                )}
+                  </div>
+                </div>
               </div>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              {mode === 'call' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowVoiceSettings(!showVoiceSettings)}
+                  className="corporate-hover-emerald border-emerald-200 text-emerald-700"
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+              )}
+              <Button 
+                onClick={handleEndSession} 
+                variant="destructive" 
+                size="sm"
+                disabled={isSessionEnding}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                <PhoneOff className="h-4 w-4 mr-2" />
+                {isSessionEnding ? 'Finalizando...' : 'Finalizar'}
+              </Button>
             </div>
           </div>
 
-          <div className="flex items-center space-x-2">
-            {mode === 'call' && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowVoiceSettings(!showVoiceSettings)}
-                className="corporate-hover-emerald"
-              >
-                <Settings className="h-4 w-4" />
-              </Button>
-            )}
-            <Button 
-              onClick={handleEndSession} 
-              variant="destructive" 
-              size="sm"
-              disabled={isSessionEnding}
-            >
-              <PhoneOff className="h-4 w-4 mr-2" />
-              {isSessionEnding ? 'Finalizando...' : 'Finalizar'}
-            </Button>
-          </div>
+          {/* Status Indicators for Voice Mode */}
+          {mode === 'call' && (
+            <div className="mt-4 flex items-center justify-center">
+              {waitingForAI ? (
+                <div className="flex items-center space-x-2 bg-blue-50 text-blue-700 px-4 py-2 rounded-full border border-blue-200">
+                  <Activity className="h-4 w-4 animate-pulse" />
+                  <span className="text-sm font-medium">Cliente hablando...</span>
+                </div>
+              ) : isListening ? (
+                <div className="flex items-center space-x-2 bg-green-50 text-green-700 px-4 py-2 rounded-full border border-green-200">
+                  <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                  <span className="text-sm font-medium">Tu turno - Habla naturalmente</span>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2 bg-gray-50 text-gray-600 px-4 py-2 rounded-full border border-gray-200">
+                  <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                  <span className="text-sm">Llamada en progreso</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Voice settings - Only in call mode */}
+        {/* Voice Settings Panel */}
         {showVoiceSettings && mode === 'call' && (
-          <Card className="mb-4 corporate-emerald-border border-2">
-            <CardContent className="p-4">
-              <div className="space-y-4">
-                <VoiceSelectorSimple
-                  selectedVoice={selectedVoiceId}
-                  onVoiceSelect={(voiceId, voiceName) => {
-                    setSelectedVoiceId(voiceId);
-                    setSelectedVoiceName(voiceName);
-                  }}
-                />
-                
-                <div className="flex items-center space-x-4">
-                  <div>
-                    <label className="text-sm font-medium">Emoción del Cliente:</label>
-                    <select
-                      value={clientEmotion}
-                      onChange={(e) => setClientEmotion(e.target.value)}
-                      className="ml-2 border rounded px-3 py-1 text-sm corporate-hover-emerald"
-                    >
-                      <option value="neutral">Neutral</option>
-                      <option value="curious">Curioso</option>
-                      <option value="skeptical">Escéptico</option>
-                      <option value="hurried">Apurado</option>
-                      <option value="annoyed">Molesto</option>
-                      <option value="interested">Interesado</option>
-                    </select>
-                  </div>
+          <Card className="mb-6 corporate-emerald-border border-2 bg-emerald-50/50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-emerald-800 flex items-center">
+                <Settings className="h-5 w-5 mr-2" />
+                Configuración de Voz
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <VoiceSelectorSimple
+                selectedVoice={selectedVoiceId}
+                onVoiceSelect={(voiceId, voiceName) => {
+                  setSelectedVoiceId(voiceId);
+                  setSelectedVoiceName(voiceName);
+                }}
+              />
+              
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-sm font-medium text-emerald-800">Emoción del Cliente:</label>
+                  <select
+                    value={clientEmotion}
+                    onChange={(e) => setClientEmotion(e.target.value)}
+                    className="ml-2 border border-emerald-200 rounded px-3 py-1 text-sm corporate-hover-emerald focus:border-emerald-500"
+                  >
+                    <option value="neutral">Neutral</option>
+                    <option value="curious">Curioso</option>
+                    <option value="skeptical">Escéptico</option>
+                    <option value="hurried">Apurado</option>
+                    <option value="annoyed">Molesto</option>
+                    <option value="interested">Interesado</option>
+                  </select>
+                </div>
 
-                  <div className="flex items-center space-x-2">
-                    <VolumeX className="h-4 w-4 corporate-text-emerald" />
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.1"
-                      value={volume}
-                      onChange={(e) => setVolume(parseFloat(e.target.value))}
-                      className="flex-1"
-                    />
-                    <Volume2 className="h-4 w-4 corporate-text-emerald" />
-                    <span className="text-xs text-gray-500">{Math.round(volume * 100)}%</span>
-                  </div>
+                <div className="flex items-center space-x-2">
+                  <VolumeX className="h-4 w-4 corporate-text-emerald" />
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={volume}
+                    onChange={(e) => setVolume(parseFloat(e.target.value))}
+                    className="flex-1 accent-emerald-600"
+                  />
+                  <Volume2 className="h-4 w-4 corporate-text-emerald" />
+                  <span className="text-xs text-emerald-700 font-medium">{Math.round(volume * 100)}%</span>
                 </div>
               </div>
             </CardContent>
           </Card>
         )}
 
-        {/* Main content */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-          {/* Conversation */}
-          <div className="lg:col-span-2">
-            <ConversationTranscript
-              messages={messages}
-              isListening={isListening && mode === 'call'}
-              currentUserText={mode === 'call' ? (interimTranscript || currentUserInput) : ''}
-              className="h-[500px]"
-            />
-
-            {/* Chat input - Only visible in chat mode */}
-            {mode === 'chat' && (
-              <Card className="mt-4 corporate-emerald-border border">
-                <CardContent className="p-3">
-                  <div className="flex space-x-2">
-                    <Input
-                      value={inputMessage}
-                      onChange={(e) => setInputMessage(e.target.value)}
-                      placeholder="Escribe tu mensaje..."
-                      onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
-                      disabled={isProcessing}
-                      className="flex-1"
+        {/* Main Content Area */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          {/* Conversation Area - Enhanced for Chat vs Voice */}
+          <div className="xl:col-span-2">
+            {mode === 'chat' ? (
+              // Chat Interface - Messaging Style
+              <Card className="h-[600px] bg-white/95 backdrop-blur-sm border border-emerald-200/60 shadow-lg">
+                <CardHeader className="border-b border-emerald-100 bg-emerald-50/50">
+                  <div className="flex items-center space-x-3">
+                    <div className="corporate-emerald rounded-full p-2">
+                      <MessageCircle className="h-4 w-4 text-white" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-emerald-900">Conversación por Chat</CardTitle>
+                      <p className="text-sm text-emerald-700">{scenarioDescription}</p>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0 flex flex-col h-full">
+                  <div className="flex-1 overflow-y-auto p-4">
+                    <ConversationTranscript
+                      messages={messages}
+                      isListening={false}
+                      currentUserText=""
+                      className="h-full"
                     />
-                    
-                    <Button
-                      onClick={() => handleSendMessage()}
-                      disabled={!inputMessage.trim() || isProcessing}
-                      size="sm"
-                      className="corporate-emerald text-white hover:from-emerald-600 hover:to-teal-700"
-                    >
-                      <Send className="h-4 w-4" />
-                    </Button>
+                  </div>
+                  
+                  {/* Chat Input */}
+                  <div className="border-t border-emerald-100 p-4 bg-emerald-50/30">
+                    <div className="flex space-x-2">
+                      <Input
+                        value={inputMessage}
+                        onChange={(e) => setInputMessage(e.target.value)}
+                        placeholder="Escribe tu mensaje..."
+                        onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+                        disabled={isProcessing}
+                        className="flex-1 border-emerald-200 focus:border-emerald-500 focus:ring-emerald-500"
+                      />
+                      <Button
+                        onClick={() => handleSendMessage()}
+                        disabled={!inputMessage.trim() || isProcessing}
+                        size="sm"
+                        className="corporate-emerald text-white hover:from-emerald-600 hover:to-emerald-700"
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
-            )}
-
-            {/* Call mode status */}
-            {mode === 'call' && (
-              <Card className="mt-4 corporate-emerald-border border">
-                <CardContent className="p-3">
-                  <div className="text-center">
-                    {waitingForAI ? (
-                      <div className="flex items-center justify-center space-x-2">
-                        <div className="animate-pulse rounded-full h-4 w-4 bg-blue-500"></div>
-                        <span className="text-sm text-blue-600">Cliente hablando...</span>
+            ) : (
+              // Voice Interface - Transcription Style
+              <Card className="h-[600px] bg-white/95 backdrop-blur-sm border border-emerald-200/60 shadow-lg">
+                <CardHeader className="border-b border-emerald-100 bg-emerald-50/50">
+                  <div className="flex items-center space-x-3">
+                    <div className="corporate-emerald rounded-full p-2">
+                      <Headphones className="h-4 w-4 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <CardTitle className="text-emerald-900">Conversación por Voz</CardTitle>
+                      <p className="text-sm text-emerald-700">Voz: {selectedVoiceName}</p>
+                    </div>
+                    {(isPlaying || waitingForAI) && (
+                      <div className="flex items-center space-x-2">
+                        <div className="flex space-x-1">
+                          <div className="w-2 h-8 bg-emerald-500 rounded animate-pulse"></div>
+                          <div className="w-2 h-6 bg-emerald-400 rounded animate-pulse" style={{ animationDelay: '0.1s' }}></div>
+                          <div className="w-2 h-10 bg-emerald-600 rounded animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                          <div className="w-2 h-4 bg-emerald-300 rounded animate-pulse" style={{ animationDelay: '0.3s' }}></div>
+                        </div>
+                        <span className="text-xs text-emerald-700 font-medium">IA hablando</span>
                       </div>
-                    ) : isListening ? (
-                      <div className="flex items-center justify-center space-x-2">
-                        <div className="animate-pulse rounded-full h-4 w-4 bg-green-500"></div>
-                        <span className="text-sm text-green-600">Tu turno - Habla naturalmente</span>
-                      </div>
-                    ) : (
-                      <span className="text-sm text-gray-500">Llamada en progreso</span>
                     )}
                   </div>
+                </CardHeader>
+                <CardContent className="p-4 h-full">
+                  <ConversationTranscript
+                    messages={messages}
+                    isListening={isListening}
+                    currentUserText={interimTranscript || currentUserInput}
+                    className="h-full"
+                  />
                 </CardContent>
               </Card>
             )}
           </div>
 
-          {/* Real-time evaluation */}
-          <div className="lg:col-span-2">
+          {/* Real-time Evaluation Panel */}
+          <div className="xl:col-span-1">
             <RealTimeEvaluation
               metrics={realTimeMetrics}
               isActive={!isSessionEnding}
