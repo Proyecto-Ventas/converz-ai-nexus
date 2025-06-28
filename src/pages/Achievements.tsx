@@ -50,9 +50,7 @@ const Achievements = () => {
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              Logros
-            </h1>
+            <h1 className="text-3xl font-bold text-gray-900">🏆 Logros</h1>
             <p className="text-gray-600">
               Desbloquea logros completando entrenamientos y alcanzando objetivos
             </p>
