@@ -13,7 +13,6 @@ const Training = () => {
   const [trainingConfig, setTrainingConfig] = useState<any>(null);
   const [evaluationResults, setEvaluationResults] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const iconUrl = "https://www.convertia.com/favicon/favicon-convertia.png";
   const handleScenarioSelect = (scenario: Scenario) => {
     setSelectedScenario(scenario);
     setCurrentView('config');
@@ -86,24 +85,24 @@ const Training = () => {
   const trainingStats = [{
     label: 'Escenarios Disponibles',
     value: '12',
-    icon: <img src={iconUrl} alt="Escenarios" className="h-5 w-5" />
+    icon: <img src=🫂 alt="Escenarios" className="h-5 w-5" />
   }, {
     label: 'Voces Latinas',
     value: '23',
-    icon: <img src={iconUrl} alt="Voces" className="h-5 w-5" />
+    icon: <img src=🗣️ alt="Voces" className="h-5 w-5" />
   }, {
     label: 'Países Cubiertos',
     value: '9',
-    icon: <img src={iconUrl} alt="Países" className="h-5 w-5" />
+    icon: <img src=🏙️ alt="Países" className="h-5 w-5" />
   }, {
     label: 'Entrenamientos Hoy',
     value: '8',
-    icon: <img src={iconUrl} alt="Entrenamientos" className="h-5 w-5" />
+    icon: <img src=🎬 alt="Entrenamientos" className="h-5 w-5" />
   }];
   return <CorporateLayout>
       <div className="p-4 sm:p-6 max-w-7xl px-[10px] mx-[-2px]">
         <CorporateHeader title="Centro de Entrenamiento IA" subtitle="Mejora tus habilidades de comunicación con simulaciones realistas y voces latinas auténticas" icon={<img src={iconUrl} alt="Training" className="h-6 w-6" />} actions={<Button variant="outline" size="sm" className="hidden sm:flex items-center gap-2">
-              <img src={iconUrl} alt="Help" className="h-4 w-4" />
+              <img src=🧑‍🏫 alt="Help" className="h-4 w-4" />
               Ayuda
             </Button>} />
 
