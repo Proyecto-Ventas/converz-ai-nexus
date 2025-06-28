@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { FileText, Settings, Brain, Volume2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -6,13 +5,10 @@ import KnowledgeManagerEnhanced from '@/components/KnowledgeManagerEnhanced';
 import ElevenLabsConfig from '@/components/ElevenLabsConfig';
 import BehaviorManager from '@/components/behaviors/BehaviorManager';
 import VoiceSelector from '@/components/voices/VoiceSelector';
-
 const Knowledge = () => {
   const [selectedVoice, setSelectedVoice] = useState<string>('');
-
-  return (
-    <div className="py-6 min-h-screen pl-page">
-      <div className="w-full px-6 lg:px-8">
+  return <div className="py-6 min-h-screen pl-page">
+      <div className="w-full px-6 mx-0 lg:px-[5px]">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
@@ -53,10 +49,7 @@ const Knowledge = () => {
           </TabsContent>
 
           <TabsContent value="voices">
-            <VoiceSelector 
-              onVoiceSelect={(voice) => setSelectedVoice(voice.id)}
-              selectedVoice={selectedVoice}
-            />
+            <VoiceSelector onVoiceSelect={voice => setSelectedVoice(voice.id)} selectedVoice={selectedVoice} />
           </TabsContent>
 
           <TabsContent value="config">
@@ -64,8 +57,6 @@ const Knowledge = () => {
           </TabsContent>
         </Tabs>
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default Knowledge;
