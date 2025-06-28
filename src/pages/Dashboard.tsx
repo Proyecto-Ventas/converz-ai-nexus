@@ -18,7 +18,7 @@ const Dashboard = () => {
   } = useAchievements();
   const recentAchievements = achievements.filter(ua => ua.earned_at).sort((a, b) => new Date(b.earned_at!).getTime() - new Date(a.earned_at!).getTime()).slice(0, 3);
   return <div className="w-full h-full pl-page">
-      <div className="w-full h-full px-6 py-6 space-y-6">
+      <div className="w-full h-full space-y-6 py-0 px-[10px] mx-[-2px]">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="space-y-1">
@@ -104,7 +104,7 @@ const Dashboard = () => {
 
         {/* Resumen de progreso */}
         {!statsLoading && stats && <Card className="bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-xl border-0">
-            <CardHeader className="border-b border-slate-700 bg-gray-50">
+            <CardHeader className="border-b border-slate-700 bg-gray-100">
               <CardTitle className="flex items-center space-x-2">
                 <TrendingUp className="h-5 w-5" />
                 <span>Resumen de Progreso</span>
