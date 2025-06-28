@@ -18,7 +18,7 @@ const Dashboard = () => {
   } = useAchievements();
   const recentAchievements = achievements.filter(ua => ua.earned_at).sort((a, b) => new Date(b.earned_at!).getTime() - new Date(a.earned_at!).getTime()).slice(0, 3);
   return <div className="w-full h-full pl-page">
-      <div className="w-full h-full space-y-6 py-0 px-[10px] mx-[-2px]">
+      <div className="w-full h-full space-y-6 px-[10px] mx-[-2px] py-px my-[8px]">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="space-y-1">
@@ -35,10 +35,7 @@ const Dashboard = () => {
             </p>
           </div>
           <Link to="/training" className="w-full sm:w-auto">
-            <Button className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow">
-              <Plus className="h-4 w-4 mr-2" />
-              Nueva Sesión
-            </Button>
+            
           </Link>
         </div>
 
