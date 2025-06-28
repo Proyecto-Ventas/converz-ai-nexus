@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,18 +7,19 @@ import { Trophy, Star, Target, Award } from 'lucide-react';
 import { useAchievements } from '@/hooks/useAchievements';
 import { useUserStats } from '@/hooks/useUserStats';
 import AchievementCard from '@/components/achievements/AchievementCard';
-
 const Achievements = () => {
-  const { achievements, availableAchievements, loading } = useAchievements();
-  const { stats } = useUserStats();
+  const {
+    achievements,
+    availableAchievements,
+    loading
+  } = useAchievements();
+  const {
+    stats
+  } = useUserStats();
   const [filter, setFilter] = useState<string>('all');
-
   const earnedAchievements = achievements.filter(ua => ua.earned_at);
   const inProgressAchievements = achievements.filter(ua => !ua.earned_at && (ua.progress || 0) > 0);
-  const availableForProgress = availableAchievements.filter(
-    a => !achievements.some(ua => ua.achievement_id === a.id)
-  );
-
+  const availableForProgress = availableAchievements.filter(a => !achievements.some(ua => ua.achievement_id === a.id));
   const getFilteredAchievements = (category: string, list: any[]) => {
     if (category === 'all') return list;
     return list.filter(item => {
@@ -32,28 +32,21 @@ const Achievements = () => {
   const allCategories = availableAchievements.map(a => a.category).filter(Boolean) as string[];
   const uniqueCategories = Array.from(new Set(allCategories));
   const categories: string[] = ['all', ...uniqueCategories];
-
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 p-6 pl-page">
+    return <div className="min-h-screen bg-gray-50 p-6 pl-page">
         <div className="w-full px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => (
-              <Card key={i} className="animate-pulse">
+            {[...Array(6)].map((_, i) => <Card key={i} className="animate-pulse">
                 <CardContent className="p-6">
                   <div className="h-32 bg-gray-200 rounded"></div>
                 </CardContent>
-              </Card>
-            ))}
+              </Card>)}
           </div>
         </div>
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="min-h-screen bg-gray-50 p-6 pl-page">
-      <div className="w-full px-6 lg:px-8 space-y-6">
+  return <div className="min-h-screen bg-gray-50 p-6 pl-page">
+      <div className="w-full px-6 space-y-6 my-[5px] py-0 lg:px-[7px]">
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
@@ -124,15 +117,9 @@ const Achievements = () => {
                   {earnedAchievements.length}/{availableAchievements.length}
                 </span>
               </div>
-              <Progress 
-                value={availableAchievements.length > 0 ? (earnedAchievements.length / availableAchievements.length) * 100 : 0} 
-                className="h-3"
-              />
+              <Progress value={availableAchievements.length > 0 ? earnedAchievements.length / availableAchievements.length * 100 : 0} className="h-3" />
               <p className="text-xs text-gray-500">
-                {availableAchievements.length > 0 
-                  ? `${((earnedAchievements.length / availableAchievements.length) * 100).toFixed(1)}% completado`
-                  : 'No hay logros disponibles'
-                }
+                {availableAchievements.length > 0 ? `${(earnedAchievements.length / availableAchievements.length * 100).toFixed(1)}% completado` : 'No hay logros disponibles'}
               </p>
             </div>
           </CardContent>
@@ -145,16 +132,9 @@ const Achievements = () => {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
-              {categories.map((category) => (
-                <Badge
-                  key={category}
-                  variant={filter === category ? 'default' : 'outline'}
-                  className="cursor-pointer"
-                  onClick={() => setFilter(category)}
-                >
+              {categories.map(category => <Badge key={category} variant={filter === category ? 'default' : 'outline'} className="cursor-pointer" onClick={() => setFilter(category)}>
                   {category === 'all' ? 'Todas' : category}
-                </Badge>
-              ))}
+                </Badge>)}
             </div>
           </CardContent>
         </Card>
@@ -174,8 +154,7 @@ const Achievements = () => {
           </TabsList>
 
           <TabsContent value="earned" className="space-y-6">
-            {getFilteredAchievements(filter, earnedAchievements).length === 0 ? (
-              <Card>
+            {getFilteredAchievements(filter, earnedAchievements).length === 0 ? <Card>
                 <CardContent className="p-12 text-center">
                   <Trophy className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">
@@ -185,22 +164,13 @@ const Achievements = () => {
                     Completa sesiones de entrenamiento para desbloquear tu primer logro
                   </p>
                 </CardContent>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {getFilteredAchievements(filter, earnedAchievements).map((userAchievement) => (
-                  <AchievementCard
-                    key={userAchievement.id}
-                    userAchievement={userAchievement}
-                  />
-                ))}
-              </div>
-            )}
+              </Card> : <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {getFilteredAchievements(filter, earnedAchievements).map(userAchievement => <AchievementCard key={userAchievement.id} userAchievement={userAchievement} />)}
+              </div>}
           </TabsContent>
 
           <TabsContent value="progress" className="space-y-6">
-            {getFilteredAchievements(filter, inProgressAchievements).length === 0 ? (
-              <Card>
+            {getFilteredAchievements(filter, inProgressAchievements).length === 0 ? <Card>
                 <CardContent className="p-12 text-center">
                   <Target className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">
@@ -210,22 +180,13 @@ const Achievements = () => {
                     Los logros aparecerán aquí cuando comiences a trabajar en ellos
                   </p>
                 </CardContent>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {getFilteredAchievements(filter, inProgressAchievements).map((userAchievement) => (
-                  <AchievementCard
-                    key={userAchievement.id}
-                    userAchievement={userAchievement}
-                  />
-                ))}
-              </div>
-            )}
+              </Card> : <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {getFilteredAchievements(filter, inProgressAchievements).map(userAchievement => <AchievementCard key={userAchievement.id} userAchievement={userAchievement} />)}
+              </div>}
           </TabsContent>
 
           <TabsContent value="available" className="space-y-6">
-            {getFilteredAchievements(filter, availableForProgress).length === 0 ? (
-              <Card>
+            {getFilteredAchievements(filter, availableForProgress).length === 0 ? <Card>
                 <CardContent className="p-12 text-center">
                   <Star className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">
@@ -235,23 +196,12 @@ const Achievements = () => {
                     ¡Has descubierto todos los logros en esta categoría!
                   </p>
                 </CardContent>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {getFilteredAchievements(filter, availableForProgress).map((achievement) => (
-                  <AchievementCard
-                    key={achievement.id}
-                    achievement={achievement}
-                    showProgress={false}
-                  />
-                ))}
-              </div>
-            )}
+              </Card> : <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {getFilteredAchievements(filter, availableForProgress).map(achievement => <AchievementCard key={achievement.id} achievement={achievement} showProgress={false} />)}
+              </div>}
           </TabsContent>
         </Tabs>
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default Achievements;
