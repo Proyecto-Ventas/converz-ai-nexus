@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Mic, MicOff, Send, Phone, PhoneOff, ArrowLeft, Volume2, VolumeX, Settings, MessageCircle, Headphones, Activity } from 'lucide-react';
+import { Mic, MicOff, Send, Phone, PhoneOff, ArrowLeft, Volume2, VolumeX, Settings, MessageSquare, Headphones, Activity, Zap } from 'lucide-react';
 import { useSessionManager } from './SessionManager';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
@@ -56,6 +57,7 @@ const LiveTrainingInterface = ({
   const [currentUserInput, setCurrentUserInput] = useState('');
   const [waitingForAI, setWaitingForAI] = useState(false);
   const [isSessionEnding, setIsSessionEnding] = useState(false);
+  const [conversationHistoryId, setConversationHistoryId] = useState<string | null>(null);
 
   const sessionManager = useSessionManager();
   const { toast } = useToast();
@@ -94,7 +96,7 @@ const LiveTrainingInterface = ({
       if (mode === 'call' && !isListening && !isSessionEnding) {
         setTimeout(() => {
           startListening();
-        }, 200);
+        }, 150); // Reducido de 200ms a 150ms para mayor fluidez
       }
     }
   });
@@ -119,6 +121,59 @@ const LiveTrainingInterface = ({
   const messageHistory = useRef<Message[]>([]);
   const sessionEndingRef = useRef(false);
 
+  // Crear historial de conversación
+  const createConversationHistory = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('conversation_history')
+        .insert({
+          user_id: sessionManager.getCurrentSession()?.user_id,
+          session_id: sessionId,
+          scenario_title: scenarioTitle,
+          mode: mode,
+          client_emotion: clientEmotion,
+          voice_used: selectedVoiceName,
+          conversation_data: []
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      setConversationHistoryId(data.id);
+      console.log('Conversation history created:', data.id);
+    } catch (error) {
+      console.error('Error creating conversation history:', error);
+    }
+  };
+
+  // Actualizar historial de conversación
+  const updateConversationHistory = async () => {
+    if (!conversationHistoryId) return;
+
+    try {
+      const conversationData = messageHistory.current.map(msg => ({
+        id: msg.id,
+        content: msg.content,
+        sender: msg.sender,
+        timestamp: msg.timestamp.toISOString()
+      }));
+
+      const { error } = await supabase
+        .from('conversation_history')
+        .update({
+          conversation_data: conversationData,
+          total_messages: messageHistory.current.length,
+          duration_seconds: Math.floor((Date.now() - sessionStartTime) / 1000),
+          final_score: realTimeMetrics.overallScore
+        })
+        .eq('id', conversationHistoryId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error updating conversation history:', error);
+    }
+  };
+
   // Initialize session
   useEffect(() => {
     const initSession = async () => {
@@ -135,12 +190,14 @@ const LiveTrainingInterface = ({
       if (newSessionId) {
         setSessionId(newSessionId);
         
+        // Crear historial de conversación
+        await createConversationHistory();
+        
         const welcomeMessage = getWelcomeMessage();
         await addMessage(welcomeMessage, 'ai', newSessionId);
         
         if (mode === 'call') {
           console.log('Starting call mode with immediate audio and listening...');
-          // No waiting states, start immediately
           await generateAndPlayAudio(welcomeMessage);
         }
       }
@@ -151,8 +208,9 @@ const LiveTrainingInterface = ({
     evaluationInterval.current = setInterval(() => {
       if (!sessionEndingRef.current) {
         updateRealTimeEvaluation();
+        updateConversationHistory(); // Guardar progreso cada 10 segundos
       }
-    }, 10000); // More frequent updates
+    }, 10000);
 
     return () => {
       if (evaluationInterval.current) {
@@ -199,7 +257,6 @@ const LiveTrainingInterface = ({
 
     if (sender === 'user') {
       lastMessageTime.current = Date.now();
-      // Update metrics immediately when user sends message
       setTimeout(() => updateRealTimeEvaluation(), 100);
     }
 
@@ -214,47 +271,78 @@ const LiveTrainingInterface = ({
     const aiMessages = messageHistory.current.filter(m => m.sender === 'ai');
     const responseTime = (Date.now() - lastMessageTime.current) / 1000;
 
-    // Enhanced evaluation algorithm
-    let rapport = 30;
-    let clarity = 35;
-    let empathy = 30;
-    let accuracy = 40;
+    // Enhanced evaluation algorithm with proper scoring
+    let rapport = 35;
+    let clarity = 40;
+    let empathy = 35;
+    let accuracy = 45;
 
     if (userMessages.length > 0) {
-      // Rapport improvements
-      rapport += Math.min(30, userMessages.length * 8);
-      if (userMessages.some(m => /hola|buenos días|buenas tardes|mucho gusto|mi nombre es|gracias/i.test(m.content))) {
-        rapport += 20;
+      // Rapport improvements - More generous scoring
+      rapport += Math.min(35, userMessages.length * 10);
+      if (userMessages.some(m => /hola|buenos días|buenas tardes|mucho gusto|mi nombre es|gracias|perfecto|excelente/i.test(m.content))) {
+        rapport += 25;
+      }
+      if (userMessages.some(m => /cómo está|espero que|me da mucho gusto|entiendo su situación/i.test(m.content))) {
+        rapport += 15;
       }
 
-      // Clarity improvements
+      // Clarity improvements - Better scoring
       const avgMessageLength = userMessages.reduce((acc, m) => acc + m.content.length, 0) / userMessages.length;
-      if (avgMessageLength > 25) clarity += 25;
-      if (avgMessageLength > 60) clarity += 20;
-
-      // Empathy improvements
-      const empathyKeywords = /entiendo|comprendo|disculpe|perdón|me imagino|siento|lamento|entiendo su situación/i;
-      const empathyCount = userMessages.filter(m => empathyKeywords.test(m.content)).length;
-      empathy += Math.min(30, empathyCount * 12);
-
-      // Accuracy improvements
-      const questionCount = userMessages.filter(m => m.content.includes('?')).length;
-      accuracy += Math.min(25, questionCount * 8);
+      if (avgMessageLength > 30) clarity += 30;
+      if (avgMessageLength > 80) clarity += 25;
       
-      if (userMessages.some(m => /servicio|producto|oferta|beneficio|solución|necesidad|presupuesto/i.test(m.content))) {
-        accuracy += 20;
-      }
+      const hasStructuredResponses = userMessages.some(m => 
+        /primero|segundo|tercero|por un lado|por otro lado|en primer lugar/i.test(m.content)
+      );
+      if (hasStructuredResponses) clarity += 20;
+
+      // Empathy improvements - More comprehensive
+      const empathyKeywords = /entiendo|comprendo|disculpe|perdón|me imagino|siento|lamento|entiendo su situación|me pongo en su lugar|debe ser difícil|lo comprendo perfectamente/i;
+      const empathyCount = userMessages.filter(m => empathyKeywords.test(m.content)).length;
+      empathy += Math.min(40, empathyCount * 15);
+      
+      const hasActiveListening = userMessages.some(m => 
+        /según lo que me dice|si entiendo bien|para confirmar|déjeme ver si entendí/i.test(m.content)
+      );
+      if (hasActiveListening) empathy += 20;
+
+      // Accuracy improvements - Sales-focused
+      const questionCount = userMessages.filter(m => m.content.includes('?')).length;
+      accuracy += Math.min(30, questionCount * 10);
+      
+      const hasSalesQuestions = userMessages.some(m => 
+        /necesidad|presupuesto|objetivo|meta|problema|desafío|solución|beneficio|resultado/i.test(m.content)
+      );
+      if (hasSalesQuestions) accuracy += 25;
+      
+      const hasClosingAttempts = userMessages.some(m => 
+        /podríamos|le parece si|qué le parece|podemos agendar|siguiente paso/i.test(m.content)
+      );
+      if (hasClosingAttempts) accuracy += 20;
     }
 
-    // Penalties
-    if (responseTime > 8) {
+    // Response time penalties - less harsh
+    if (responseTime > 10) {
+      rapport -= 8;
+      clarity -= 6;
+    } else if (responseTime > 6) {
+      rapport -= 4;
+      clarity -= 3;
+    }
+
+    // Early price discussion penalty - less harsh
+    if (userMessages.length > 0 && userMessages.some(m => /cuánto|precio|costo|vale/i.test(m.content)) && userMessages.length < 5) {
       rapport -= 10;
-      clarity -= 8;
+      accuracy -= 8;
     }
 
-    if (userMessages.length > 0 && userMessages.some(m => /cuánto|precio|costo|vale/i.test(m.content)) && userMessages.length < 4) {
-      rapport -= 15;
-      accuracy -= 10;
+    // Bonus for conversation length
+    if (userMessages.length >= 5) {
+      rapport += 10;
+      clarity += 10;
+      empathy += 10;
+      accuracy += 10;
     }
 
     // Ensure 0-100 range
@@ -269,21 +357,31 @@ const LiveTrainingInterface = ({
     const criticalIssues = [];
     const positivePoints = [];
 
-    if (overallScore < 40) {
+    if (overallScore < 50) {
       liveCoaching.push("Mejora tu approach inicial");
-      criticalIssues.push("Score bajo");
-    } else if (overallScore >= 75) {
-      positivePoints.push("Excelente desempeño");
+      criticalIssues.push("Score bajo - necesitas más práctica");
+    } else if (overallScore >= 80) {
+      positivePoints.push("¡Excelente desempeño!");
+    } else if (overallScore >= 65) {
+      positivePoints.push("Buen trabajo, sigue así");
     }
 
-    if (responseTime > 6) {
+    if (responseTime > 8) {
       liveCoaching.push("Responde más rápido");
     }
 
     if (rapport < 60) {
       liveCoaching.push("Construye más rapport");
     } else if (rapport >= 80) {
-      positivePoints.push("Excelente conexión");
+      positivePoints.push("Excelente conexión con el cliente");
+    }
+
+    if (empathy < 60) {
+      liveCoaching.push("Muestra más empatía");
+    }
+
+    if (accuracy < 60) {
+      liveCoaching.push("Haz más preguntas de descubrimiento");
     }
 
     setRealTimeMetrics({
@@ -324,14 +422,12 @@ const LiveTrainingInterface = ({
         stopListening();
       }
       
-      // Immediate audio generation without delays
       await playAudio(text, selectedVoiceId);
     } catch (error) {
       console.error('Error generating/playing audio:', error);
       setWaitingForAI(false);
-      // Continue listening even if audio fails
       if (mode === 'call' && !isSessionEnding) {
-        setTimeout(() => startListening(), 300);
+        setTimeout(() => startListening(), 200);
       }
     }
   };
@@ -381,7 +477,6 @@ const LiveTrainingInterface = ({
       await addMessage(aiResponse, 'ai');
 
       if (mode === 'call') {
-        // Immediate audio generation
         await generateAndPlayAudio(aiResponse);
       } else {
         setWaitingForAI(false);
@@ -396,46 +491,12 @@ const LiveTrainingInterface = ({
         variant: "destructive",
       });
       
-      // Resume listening even after error
       if (mode === 'call' && !isSessionEnding) {
-        setTimeout(() => startListening(), 500);
+        setTimeout(() => startListening(), 300);
       }
     } finally {
       setIsProcessing(false);
     }
-  };
-
-  const handleVoiceMode = () => {
-    console.log('Toggling voice mode from:', mode);
-    if (mode === 'call') {
-      if (isListening) {
-        stopListening();
-      }
-      if (isPlaying) {
-        stopAudio();
-      }
-    }
-    setMode(mode === 'chat' ? 'call' : 'chat');
-  };
-
-  const handleMicToggle = () => {
-    console.log('Toggling microphone, currently listening:', isListening);
-    if (isListening) {
-      stopListening();
-      if (inputMessage.trim()) {
-        console.log('Auto-sending message after stopping mic');
-        handleSendMessage();
-      }
-    } else {
-      console.log('Starting to listen...');
-      startListening();
-    }
-  };
-
-  const handleVoiceSelect = (voiceId: string, voiceName: string) => {
-    console.log('Voice selected:', voiceName, 'ID:', voiceId);
-    setSelectedVoiceId(voiceId);
-    setSelectedVoiceName(voiceName);
   };
 
   const handleEndSession = async () => {
@@ -445,26 +506,33 @@ const LiveTrainingInterface = ({
     setIsSessionEnding(true);
     sessionEndingRef.current = true;
     
-    // Stop all audio and listening immediately
     cleanup();
     if (isPlaying) {
       stopAudio();
     }
     
-    // Clear intervals
     if (evaluationInterval.current) {
       clearInterval(evaluationInterval.current);
     }
     
     if (sessionId) {
       try {
-        // Final evaluation update
         updateRealTimeEvaluation();
         
-        // End session in database
+        // Final update to conversation history
+        if (conversationHistoryId) {
+          await supabase
+            .from('conversation_history')
+            .update({
+              completed_at: new Date().toISOString(),
+              final_score: realTimeMetrics.overallScore,
+              duration_seconds: Math.floor((Date.now() - sessionStartTime) / 1000)
+            })
+            .eq('id', conversationHistoryId);
+        }
+        
         await sessionManager.endSession(sessionId, realTimeMetrics.overallScore);
         
-        // Create comprehensive evaluation
         const evaluation = {
           overall_score: realTimeMetrics.overallScore,
           rapport_score: realTimeMetrics.rapport,
@@ -494,7 +562,6 @@ const LiveTrainingInterface = ({
         onComplete(evaluation);
       } catch (error) {
         console.error('Error ending session:', error);
-        // Even if there's an error, complete the session
         onComplete({
           overall_score: realTimeMetrics.overallScore,
           rapport_score: realTimeMetrics.rapport,
@@ -506,274 +573,302 @@ const LiveTrainingInterface = ({
           specific_feedback: 'La sesión se completó pero hubo un error al procesar la evaluación.'
         });
       }
-    } else {
-      // Fallback if no session ID
-      onComplete({
-        overall_score: realTimeMetrics.overallScore,
-        rapport_score: realTimeMetrics.rapport,
-        clarity_score: realTimeMetrics.clarity,
-        empathy_score: realTimeMetrics.empathy,
-        accuracy_score: realTimeMetrics.accuracy,
-        strengths: ['Sesión completada'],
-        improvements: ['Sin ID de sesión disponible'],
-        specific_feedback: 'La sesión se completó pero no se pudo guardar correctamente.'
-      });
     }
-  };
-
-  const requestFeedback = () => {
-    updateRealTimeEvaluation();
-    toast({
-      title: "Evaluación Actualizada",
-      description: `Puntuación actual: ${realTimeMetrics.overallScore}/100`,
-    });
   };
 
   const currentDuration = Math.floor((Date.now() - sessionStartTime) / 1000);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-green-50">
-      <div className="max-w-7xl mx-auto p-4">
-        {/* Enhanced Header with Corporate Design */}
-        <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-emerald-200/60 p-4 mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Button 
-                variant="outline" 
-                onClick={onBack} 
-                size="sm" 
-                className="corporate-hover-emerald border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Volver
-              </Button>
-              
-              <div className="flex items-center space-x-3">
-                <div className="corporate-emerald rounded-lg p-2">
-                  {mode === 'chat' ? (
-                    <MessageCircle className="h-5 w-5 text-white" />
-                  ) : (
-                    <Headphones className="h-5 w-5 text-white" />
+    <div className="h-screen bg-gradient-to-br from-emerald-50 via-white to-green-50 flex flex-col">
+      {/* Header */}
+      <div className="bg-white/90 backdrop-blur-sm border-b border-emerald-200/60 p-4 flex-shrink-0">
+        <div className="flex items-center justify-between max-w-7xl mx-auto">
+          <div className="flex items-center space-x-4">
+            <Button 
+              variant="outline" 
+              onClick={onBack} 
+              size="sm" 
+              className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Volver
+            </Button>
+            
+            <div className="flex items-center space-x-3">
+              <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-lg p-2">
+                {mode === 'chat' ? (
+                  <MessageSquare className="h-5 w-5 text-white" />
+                ) : (
+                  <Headphones className="h-5 w-5 text-white" />
+                )}
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-emerald-900">{scenarioTitle}</h1>
+                <div className="flex items-center space-x-2 mt-1">
+                  <Badge className={mode === 'call' ? 'bg-emerald-600 text-white' : 'bg-slate-500 text-white'}>
+                    {mode === 'call' ? '🎤 Llamada' : '💬 Chat'}
+                  </Badge>
+                  <Badge variant="outline" className="border-emerald-300 text-emerald-700">
+                    Emoción: {clientEmotion}
+                  </Badge>
+                  {mode === 'call' && selectedVoiceName && (
+                    <Badge variant="outline" className="border-emerald-300 text-emerald-700">
+                      🗣️ {selectedVoiceName}
+                    </Badge>
                   )}
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold text-emerald-900">{scenarioTitle}</h1>
-                  <div className="flex items-center space-x-2 mt-1">
-                    <Badge className={mode === 'call' ? 'corporate-emerald text-white' : 'bg-slate-500 text-white'}>
-                      {mode === 'call' ? '🎤 Llamada' : '💬 Chat'}
-                    </Badge>
-                    <Badge variant="outline" className="corporate-emerald-border corporate-text-emerald">
-                      Emoción: {clientEmotion}
-                    </Badge>
-                    {mode === 'call' && selectedVoiceName && (
-                      <Badge variant="outline" className="corporate-emerald-border corporate-text-emerald">
-                        🗣️ {selectedVoiceName}
-                      </Badge>
-                    )}
-                  </div>
                 </div>
               </div>
             </div>
-
-            <div className="flex items-center space-x-2">
-              {mode === 'call' && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowVoiceSettings(!showVoiceSettings)}
-                  className="corporate-hover-emerald border-emerald-200 text-emerald-700"
-                >
-                  <Settings className="h-4 w-4" />
-                </Button>
-              )}
-              <Button 
-                onClick={handleEndSession} 
-                variant="destructive" 
-                size="sm"
-                disabled={isSessionEnding}
-                className="bg-red-600 hover:bg-red-700"
-              >
-                <PhoneOff className="h-4 w-4 mr-2" />
-                {isSessionEnding ? 'Finalizando...' : 'Finalizar'}
-              </Button>
-            </div>
           </div>
 
-          {/* Status Indicators for Voice Mode */}
-          {mode === 'call' && (
-            <div className="mt-4 flex items-center justify-center">
-              {waitingForAI ? (
-                <div className="flex items-center space-x-2 bg-blue-50 text-blue-700 px-4 py-2 rounded-full border border-blue-200">
-                  <Activity className="h-4 w-4 animate-pulse" />
-                  <span className="text-sm font-medium">Cliente hablando...</span>
+          <div className="flex items-center space-x-2">
+            {mode === 'call' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowVoiceSettings(!showVoiceSettings)}
+                className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+            )}
+            <Button 
+              onClick={handleEndSession} 
+              variant="destructive" 
+              size="sm"
+              disabled={isSessionEnding}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              <PhoneOff className="h-4 w-4 mr-2" />
+              {isSessionEnding ? 'Finalizando...' : 'Finalizar'}
+            </Button>
+          </div>
+        </div>
+
+        {/* Status Indicators for Voice Mode */}
+        {mode === 'call' && (
+          <div className="mt-4 flex items-center justify-center">
+            {waitingForAI ? (
+              <div className="flex items-center space-x-3 bg-blue-50 text-blue-700 px-6 py-3 rounded-full border border-blue-200">
+                <div className="flex space-x-1">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                 </div>
-              ) : isListening ? (
-                <div className="flex items-center space-x-2 bg-green-50 text-green-700 px-4 py-2 rounded-full border border-green-200">
-                  <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                  <span className="text-sm font-medium">Tu turno - Habla naturalmente</span>
+                <span className="text-sm font-medium">Cliente hablando...</span>
+              </div>
+            ) : isListening ? (
+              <div className="flex items-center space-x-3 bg-green-50 text-green-700 px-6 py-3 rounded-full border border-green-200">
+                <div className="w-4 h-4 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-sm font-medium">Tu turno - Habla naturalmente</span>
+                <Zap className="h-4 w-4 animate-pulse" />
+              </div>
+            ) : (
+              <div className="flex items-center space-x-2 bg-gray-50 text-gray-600 px-4 py-2 rounded-full border border-gray-200">
+                <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                <span className="text-sm">Llamada en progreso</span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Voice Settings Panel */}
+      {showVoiceSettings && mode === 'call' && (
+        <div className="bg-emerald-50/80 border-b border-emerald-200 p-4 flex-shrink-0">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <VoiceSelectorSimple
+                  selectedVoice={selectedVoiceId}
+                  onVoiceSelect={(voiceId, voiceName) => {
+                    setSelectedVoiceId(voiceId);
+                    setSelectedVoiceName(voiceName);
+                  }}
+                />
+                
+                <select
+                  value={clientEmotion}
+                  onChange={(e) => setClientEmotion(e.target.value)}
+                  className="border border-emerald-200 rounded px-3 py-2 text-sm bg-white hover:border-emerald-400 focus:border-emerald-500 focus:outline-none"
+                >
+                  <option value="neutral">Neutral</option>
+                  <option value="curious">Curioso</option>
+                  <option value="skeptical">Escéptico</option>
+                  <option value="hurried">Apurado</option>
+                  <option value="annoyed">Molesto</option>
+                  <option value="interested">Interesado</option>
+                </select>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <VolumeX className="h-4 w-4 text-emerald-700" />
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                  value={volume}
+                  onChange={(e) => setVolume(parseFloat(e.target.value))}
+                  className="w-24 accent-emerald-600"
+                />
+                <Volume2 className="h-4 w-4 text-emerald-700" />
+                <span className="text-xs text-emerald-700 font-medium w-8">{Math.round(volume * 100)}%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex flex-col">
+          {mode === 'chat' ? (
+            // Chat Interface - Full Height Messaging
+            <div className="flex-1 bg-white border-r border-emerald-200/60 flex flex-col">
+              <div className="border-b border-emerald-100 bg-emerald-50/50 p-4 flex-shrink-0">
+                <div className="flex items-center space-x-3">
+                  <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full p-2">
+                    <MessageSquare className="h-4 w-4 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-emerald-900">Conversación por Chat</h3>
+                    <p className="text-sm text-emerald-700">{scenarioDescription}</p>
+                  </div>
                 </div>
-              ) : (
-                <div className="flex items-center space-x-2 bg-gray-50 text-gray-600 px-4 py-2 rounded-full border border-gray-200">
-                  <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
-                  <span className="text-sm">Llamada en progreso</span>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                      message.sender === 'user' 
+                        ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white' 
+                        : 'bg-gray-100 text-gray-900 border border-gray-200'
+                    }`}>
+                      <p className="text-sm leading-relaxed">{message.content}</p>
+                      <span className="text-xs opacity-70 mt-1 block">
+                        {message.timestamp.toLocaleTimeString()}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                
+                {isProcessing && (
+                  <div className="flex justify-start">
+                    <div className="bg-gray-100 rounded-2xl px-4 py-3 border border-gray-200">
+                      <div className="flex space-x-1">
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Chat Input */}
+              <div className="border-t border-emerald-100 p-4 bg-emerald-50/30 flex-shrink-0">
+                <div className="flex space-x-3">
+                  <Input
+                    value={inputMessage}
+                    onChange={(e) => setInputMessage(e.target.value)}
+                    placeholder="Escribe tu mensaje..."
+                    onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+                    disabled={isProcessing}
+                    className="flex-1 border-emerald-200 focus:border-emerald-500 focus:ring-emerald-500 bg-white"
+                  />
+                  <Button
+                    onClick={() => handleSendMessage()}
+                    disabled={!inputMessage.trim() || isProcessing}
+                    className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-600 hover:to-emerald-700 px-6"
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
                 </div>
-              )}
+              </div>
+            </div>
+          ) : (
+            // Voice Interface - Full Height Transcription
+            <div className="flex-1 bg-white border-r border-emerald-200/60 flex flex-col">
+              <div className="border-b border-emerald-100 bg-emerald-50/50 p-4 flex-shrink-0">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full p-2">
+                      <Headphones className="h-4 w-4 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-emerald-900">Conversación por Voz</h3>
+                      <p className="text-sm text-emerald-700">Voz: {selectedVoiceName}</p>
+                    </div>
+                  </div>
+                  
+                  {(isPlaying || waitingForAI) && (
+                    <div className="flex items-center space-x-3">
+                      <div className="flex space-x-1">
+                        <div className="w-2 h-8 bg-emerald-500 rounded animate-pulse"></div>
+                        <div className="w-2 h-6 bg-emerald-400 rounded animate-pulse" style={{ animationDelay: '0.1s' }}></div>
+                        <div className="w-2 h-10 bg-emerald-600 rounded animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                        <div className="w-2 h-4 bg-emerald-300 rounded animate-pulse" style={{ animationDelay: '0.3s' }}></div>
+                      </div>
+                      <span className="text-xs text-emerald-700 font-medium">IA hablando</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div className={`max-w-[85%] rounded-lg px-4 py-3 ${
+                      message.sender === 'user' 
+                        ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white' 
+                        : 'bg-gray-50 text-gray-900 border border-gray-200'
+                    }`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-medium opacity-70">
+                          {message.sender === 'user' ? 'Tú' : 'Cliente IA'}
+                        </span>
+                        <span className="text-xs opacity-60">
+                          {message.timestamp.toLocaleTimeString()}
+                        </span>
+                      </div>
+                      <p className="text-sm leading-relaxed">{message.content}</p>
+                    </div>
+                  </div>
+                ))}
+                
+                {currentUserInput && (
+                  <div className="flex justify-end">
+                    <div className="max-w-[85%] bg-gradient-to-r from-emerald-400 to-emerald-500 text-white rounded-lg px-4 py-3 opacity-70">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-medium">Tú (hablando...)</span>
+                        <Mic className="h-3 w-3 animate-pulse" />
+                      </div>
+                      <p className="text-sm italic">{currentUserInput}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
 
-        {/* Voice Settings Panel */}
-        {showVoiceSettings && mode === 'call' && (
-          <Card className="mb-6 corporate-emerald-border border-2 bg-emerald-50/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-emerald-800 flex items-center">
-                <Settings className="h-5 w-5 mr-2" />
-                Configuración de Voz
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <VoiceSelectorSimple
-                selectedVoice={selectedVoiceId}
-                onVoiceSelect={(voiceId, voiceName) => {
-                  setSelectedVoiceId(voiceId);
-                  setSelectedVoiceName(voiceName);
-                }}
-              />
-              
-              <div className="flex items-center justify-between">
-                <div>
-                  <label className="text-sm font-medium text-emerald-800">Emoción del Cliente:</label>
-                  <select
-                    value={clientEmotion}
-                    onChange={(e) => setClientEmotion(e.target.value)}
-                    className="ml-2 border border-emerald-200 rounded px-3 py-1 text-sm corporate-hover-emerald focus:border-emerald-500"
-                  >
-                    <option value="neutral">Neutral</option>
-                    <option value="curious">Curioso</option>
-                    <option value="skeptical">Escéptico</option>
-                    <option value="hurried">Apurado</option>
-                    <option value="annoyed">Molesto</option>
-                    <option value="interested">Interesado</option>
-                  </select>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <VolumeX className="h-4 w-4 corporate-text-emerald" />
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={volume}
-                    onChange={(e) => setVolume(parseFloat(e.target.value))}
-                    className="flex-1 accent-emerald-600"
-                  />
-                  <Volume2 className="h-4 w-4 corporate-text-emerald" />
-                  <span className="text-xs text-emerald-700 font-medium">{Math.round(volume * 100)}%</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Main Content Area */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          {/* Conversation Area - Enhanced for Chat vs Voice */}
-          <div className="xl:col-span-2">
-            {mode === 'chat' ? (
-              // Chat Interface - Messaging Style
-              <Card className="h-[600px] bg-white/95 backdrop-blur-sm border border-emerald-200/60 shadow-lg">
-                <CardHeader className="border-b border-emerald-100 bg-emerald-50/50">
-                  <div className="flex items-center space-x-3">
-                    <div className="corporate-emerald rounded-full p-2">
-                      <MessageCircle className="h-4 w-4 text-white" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-emerald-900">Conversación por Chat</CardTitle>
-                      <p className="text-sm text-emerald-700">{scenarioDescription}</p>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-0 flex flex-col h-full">
-                  <div className="flex-1 overflow-y-auto p-4">
-                    <ConversationTranscript
-                      messages={messages}
-                      isListening={false}
-                      currentUserText=""
-                      className="h-full"
-                    />
-                  </div>
-                  
-                  {/* Chat Input */}
-                  <div className="border-t border-emerald-100 p-4 bg-emerald-50/30">
-                    <div className="flex space-x-2">
-                      <Input
-                        value={inputMessage}
-                        onChange={(e) => setInputMessage(e.target.value)}
-                        placeholder="Escribe tu mensaje..."
-                        onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
-                        disabled={isProcessing}
-                        className="flex-1 border-emerald-200 focus:border-emerald-500 focus:ring-emerald-500"
-                      />
-                      <Button
-                        onClick={() => handleSendMessage()}
-                        disabled={!inputMessage.trim() || isProcessing}
-                        size="sm"
-                        className="corporate-emerald text-white hover:from-emerald-600 hover:to-emerald-700"
-                      >
-                        <Send className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              // Voice Interface - Transcription Style
-              <Card className="h-[600px] bg-white/95 backdrop-blur-sm border border-emerald-200/60 shadow-lg">
-                <CardHeader className="border-b border-emerald-100 bg-emerald-50/50">
-                  <div className="flex items-center space-x-3">
-                    <div className="corporate-emerald rounded-full p-2">
-                      <Headphones className="h-4 w-4 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <CardTitle className="text-emerald-900">Conversación por Voz</CardTitle>
-                      <p className="text-sm text-emerald-700">Voz: {selectedVoiceName}</p>
-                    </div>
-                    {(isPlaying || waitingForAI) && (
-                      <div className="flex items-center space-x-2">
-                        <div className="flex space-x-1">
-                          <div className="w-2 h-8 bg-emerald-500 rounded animate-pulse"></div>
-                          <div className="w-2 h-6 bg-emerald-400 rounded animate-pulse" style={{ animationDelay: '0.1s' }}></div>
-                          <div className="w-2 h-10 bg-emerald-600 rounded animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                          <div className="w-2 h-4 bg-emerald-300 rounded animate-pulse" style={{ animationDelay: '0.3s' }}></div>
-                        </div>
-                        <span className="text-xs text-emerald-700 font-medium">IA hablando</span>
-                      </div>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent className="p-4 h-full">
-                  <ConversationTranscript
-                    messages={messages}
-                    isListening={isListening}
-                    currentUserText={interimTranscript || currentUserInput}
-                    className="h-full"
-                  />
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* Real-time Evaluation Panel */}
-          <div className="xl:col-span-1">
-            <RealTimeEvaluation
-              metrics={realTimeMetrics}
-              isActive={!isSessionEnding}
-              sessionDuration={currentDuration}
-              messageCount={messages.length}
-              onRequestFeedback={requestFeedback}
-            />
-          </div>
+        {/* Real-time Evaluation Panel */}
+        <div className="w-80 flex-shrink-0">
+          <RealTimeEvaluation
+            metrics={realTimeMetrics}
+            isActive={!isSessionEnding}
+            sessionDuration={currentDuration}
+            messageCount={messages.length}
+            onRequestFeedback={() => updateRealTimeEvaluation()}
+          />
         </div>
       </div>
     </div>

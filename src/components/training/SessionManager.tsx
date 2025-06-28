@@ -177,7 +177,7 @@ export class SessionManager {
         console.warn(`Message save attempt failed, retries left: ${retries}`, error);
         
         if (retries > 0) {
-          await new Promise(resolve => setTimeout(resolve, 500));
+          await new Promise(resolve => setTimeout(resolve, 300)); // Reduced wait time
         }
       }
 
@@ -211,7 +211,7 @@ export class SessionManager {
         }
 
         // Update session with retry logic
-        retries = 3;
+        retries = 2; // Reduced retries for better performance
         let updateError = null;
         
         while (retries > 0) {
@@ -235,7 +235,7 @@ export class SessionManager {
           console.warn(`Session update attempt failed, retries left: ${retries}`, error);
           
           if (retries > 0) {
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 200));
           }
         }
 
@@ -293,7 +293,8 @@ export class SessionManager {
           ...currentSession.conversation_log as any,
           session_status: 'completed',
           ended_at: endTime,
-          duration_seconds: duration
+          duration_seconds: duration,
+          final_score: finalScore // Add final score to conversation log
         };
 
         // Use upsert to ensure session is updated

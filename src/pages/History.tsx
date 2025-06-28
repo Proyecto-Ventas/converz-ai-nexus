@@ -1,420 +1,403 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Clock, Trophy, TrendingUp, Search, Filter, BarChart3 } from 'lucide-react';
-import { useSessionManager } from '@/components/training/SessionManager';
-import { useActivityLog } from '@/hooks/useActivityLog';
-import { useUserStats } from '@/hooks/useUserStats';
+import { Eye, Download, Calendar, Clock, MessageSquare, TrendingUp, Phone, History as HistoryIcon, Headphones } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { CorporateLayout, CorporateCard, CorporateHeader, CorporateSection } from '@/components/ui/corporate-layout';
+
+interface ConversationHistory {
+  id: string;
+  scenario_title: string;
+  mode: 'chat' | 'call';
+  client_emotion: string;
+  voice_used?: string;
+  duration_seconds: number;
+  total_messages: number;
+  final_score: number;
+  conversation_data: Array<{
+    id: string;
+    content: string;
+    sender: 'user' | 'ai';
+    timestamp: string;
+  }>;
+  created_at: string;
+  completed_at?: string;
+}
 
 const History = () => {
-  const sessionManager = useSessionManager();
-  const { activities, loading: activitiesLoading } = useActivityLog();
-  const { stats } = useUserStats();
-  const [sessions, setSessions] = useState<any[]>([]);
+  const [conversations, setConversations] = useState<ConversationHistory[]>([]);
+  const [selectedConversation, setSelectedConversation] = useState<ConversationHistory | null>(null);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState<'date' | 'score' | 'duration'>('date');
-  const [filterBy, setFilterBy] = useState<'all' | 'completed' | 'high_score'>('all');
+  const { user } = useAuth();
 
   useEffect(() => {
-    loadSessions();
-  }, []);
+    if (user) {
+      loadConversationHistory();
+    }
+  }, [user]);
 
-  const loadSessions = async () => {
+  const loadConversationHistory = async () => {
+    if (!user) return;
+    
+    setLoading(true);
     try {
-      setLoading(true);
-      const sessionsData = await sessionManager.getUserSessions(50);
-      setSessions(sessionsData);
+      const { data, error } = await supabase
+        .from('conversation_history')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      
+      setConversations(data || []);
     } catch (error) {
-      console.error('Error loading sessions:', error);
+      console.error('Error loading conversation history:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredSessions = sessions
-    .filter(session => {
-      // Filtro de búsqueda
-      if (searchTerm) {
-        const searchLower = searchTerm.toLowerCase();
-        return (
-          (session.scenario_title || '').toLowerCase().includes(searchLower) ||
-          (session.client_emotion || '').toLowerCase().includes(searchLower)
-        );
-      }
-      return true;
-    })
-    .filter(session => {
-      // Filtro por tipo
-      switch (filterBy) {
-        case 'completed':
-          return session.completed_at;
-        case 'high_score':
-          return (session.score || 0) >= 80;
-        default:
-          return true;
-      }
-    })
-    .sort((a, b) => {
-      // Ordenamiento
-      switch (sortBy) {
-        case 'score':
-          return (b.score || 0) - (a.score || 0);
-        case 'duration':
-          return (b.duration_minutes || 0) - (a.duration_minutes || 0);
-        case 'date':
-        default:
-          return new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime();
-      }
-    });
-
-  const getScoreColor = (score: number) => {
-    if (score >= 90) return 'bg-green-500';
-    if (score >= 80) return 'bg-blue-500';
-    if (score >= 70) return 'bg-yellow-500';
-    if (score >= 60) return 'bg-orange-500';
-    return 'bg-red-500';
-  };
-
-  const getScoreLabel = (score: number) => {
-    if (score >= 90) return 'Excelente';
-    if (score >= 80) return 'Muy Bueno';
-    if (score >= 70) return 'Bueno';
-    if (score >= 60) return 'Regular';
-    return 'Necesita Mejora';
-  };
-
-  const formatDuration = (minutes: number) => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    if (hours > 0) {
-      return `${hours}h ${mins}m`;
+  const getStatusBadge = (conversation: ConversationHistory) => {
+    if (conversation.completed_at) {
+      return <Badge className="bg-green-100 text-green-700">Completada</Badge>;
     }
-    return `${mins}m`;
+    return <Badge className="bg-blue-100 text-blue-700">En Progreso</Badge>;
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  const getScoreBadge = (score: number) => {
+    if (score >= 80) return <Badge className="bg-green-100 text-green-700 font-semibold">{score}%</Badge>;
+    if (score >= 60) return <Badge className="bg-yellow-100 text-yellow-700 font-semibold">{score}%</Badge>;
+    return <Badge className="bg-red-100 text-red-700 font-semibold">{score}%</Badge>;
   };
 
-  const getActivityDescription = (activity: any) => {
-    switch (activity.activity_type) {
-      case 'session_completed':
-        return `Sesión completada con ${activity.activity_data?.score || 0}% de puntuación`;
-      case 'achievement_earned':
-        return `Logro desbloqueado: ${activity.activity_data?.achievement_title || 'Nuevo logro'}`;
-      case 'challenge_joined':
-        return `Se unió al desafío: ${activity.activity_data?.challenge_title || 'Nuevo desafío'}`;
-      default:
-        return activity.activity_type;
-    }
+  const formatDuration = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
-  const monthlyStats = React.useMemo(() => {
-    const last6Months = [];
-    const now = new Date();
+  const exportConversation = (conversation: ConversationHistory) => {
+    const data = {
+      conversation,
+      export_date: new Date().toISOString(),
+      summary: {
+        scenario: conversation.scenario_title,
+        mode: conversation.mode,
+        duration: formatDuration(conversation.duration_seconds),
+        messages: conversation.total_messages,
+        score: conversation.final_score
+      }
+    };
     
-    for (let i = 5; i >= 0; i--) {
-      const month = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthSessions = sessions.filter(session => {
-        const sessionDate = new Date(session.created_at || '');
-        return sessionDate.getMonth() === month.getMonth() && 
-               sessionDate.getFullYear() === month.getFullYear();
-      });
-      
-      last6Months.push({
-        month: month.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' }),
-        sessions: monthSessions.length,
-        avgScore: monthSessions.length > 0 
-          ? Math.round(monthSessions.reduce((sum, s) => sum + (s.score || 0), 0) / monthSessions.length)
-          : 0,
-        totalTime: monthSessions.reduce((sum, s) => sum + (s.duration_minutes || 0), 0)
-      });
-    }
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `conversacion-${conversation.scenario_title.replace(/\s+/g, '-')}-${format(new Date(conversation.created_at), 'yyyy-MM-dd')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const getConversationStats = () => {
+    const totalConversations = conversations.length;
+    const completedConversations = conversations.filter(c => c.completed_at).length;
+    const avgScore = conversations.reduce((acc, c) => acc + c.final_score, 0) / Math.max(totalConversations, 1);
+    const totalDuration = conversations.reduce((acc, c) => acc + c.duration_seconds, 0);
     
-    return last6Months;
-  }, [sessions]);
+    return { totalConversations, completedConversations, avgScore: Math.round(avgScore), totalDuration };
+  };
+
+  const stats = getConversationStats();
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6 pl-page">
-        <div className="max-w-7xl mx-auto">
-          <div className="animate-pulse space-y-6">
-            {[...Array(5)].map((_, i) => (
-              <Card key={i}>
-                <CardContent className="p-6">
-                  <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+      <CorporateLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
         </div>
-      </div>
+      </CorporateLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6 pl-page">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-              Historial
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              Revisa tu progreso y actividad de entrenamiento
-            </p>
-          </div>
-        </div>
+    <CorporateLayout>
+      <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+        <CorporateHeader 
+          title="Historial de Conversaciones" 
+          subtitle="Revisa y analiza todas tus sesiones de entrenamiento anteriores"
+          icon={<HistoryIcon className="h-6 w-6" />}
+          actions={
+            <Button onClick={loadConversationHistory} variant="outline" size="sm">
+              Actualizar
+            </Button>
+          }
+        />
 
-        {/* Estadísticas rápidas */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card>
-            <CardContent className="flex items-center p-6">
-              <Trophy className="h-8 w-8 text-yellow-600 mr-4" />
-              <div>
-                <div className="text-2xl font-bold">{sessions.length}</div>
-                <div className="text-sm text-gray-600">Sesiones Totales</div>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <CorporateCard className="p-4">
+            <div className="flex items-center space-x-3">
+              <div className="bg-emerald-100 p-2 rounded-lg">
+                <MessageSquare className="h-5 w-5 text-emerald-600" />
               </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="flex items-center p-6">
-              <TrendingUp className="h-8 w-8 text-blue-600 mr-4" />
               <div>
-                <div className="text-2xl font-bold">{Number(stats?.average_score || 0).toFixed(1)}%</div>
-                <div className="text-sm text-gray-600">Puntuación Promedio</div>
+                <p className="text-sm text-gray-600">Total Conversaciones</p>
+                <p className="text-2xl font-bold text-emerald-900">{stats.totalConversations}</p>
               </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="flex items-center p-6">
-              <Clock className="h-8 w-8 text-green-600 mr-4" />
-              <div>
-                <div className="text-2xl font-bold">
-                  {Math.floor((stats?.total_time_minutes || 0) / 60)}h
-                </div>
-                <div className="text-sm text-gray-600">Tiempo Total</div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="flex items-center p-6">
-              <BarChart3 className="h-8 w-8 text-purple-600 mr-4" />
-              <div>
-                <div className="text-2xl font-bold">{stats?.best_score || 0}%</div>
-                <div className="text-sm text-gray-600">Mejor Puntuación</div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Gráfico mensual */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Progreso Mensual</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-6 gap-4">
-              {monthlyStats.map((month, index) => (
-                <div key={index} className="text-center">
-                  <div className="text-xs text-gray-500 mb-2">{month.month}</div>
-                  <div className="bg-blue-100 dark:bg-blue-900 rounded-lg p-3 space-y-1">
-                    <div className="text-lg font-bold text-blue-600">{month.sessions}</div>
-                    <div className="text-xs text-gray-600">sesiones</div>
-                    <div className="text-sm font-medium">{month.avgScore}%</div>
-                    <div className="text-xs text-gray-600">promedio</div>
-                  </div>
-                </div>
-              ))}
             </div>
-          </CardContent>
-        </Card>
+          </CorporateCard>
+          
+          <CorporateCard className="p-4">
+            <div className="flex items-center space-x-3">
+              <div className="bg-green-100 p-2 rounded-lg">
+                <TrendingUp className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Puntuación Promedio</p>
+                <p className="text-2xl font-bold text-green-900">{stats.avgScore}%</p>
+              </div>
+            </div>
+          </CorporateCard>
+          
+          <CorporateCard className="p-4">
+            <div className="flex items-center space-x-3">
+              <div className="bg-blue-100 p-2 rounded-lg">
+                <Clock className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Tiempo Total</p>
+                <p className="text-2xl font-bold text-blue-900">{Math.floor(stats.totalDuration / 60)}m</p>
+              </div>
+            </div>
+          </CorporateCard>
+          
+          <CorporateCard className="p-4">
+            <div className="flex items-center space-x-3">
+              <div className="bg-purple-100 p-2 rounded-lg">
+                <Phone className="h-5 w-5 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Completadas</p>
+                <p className="text-2xl font-bold text-purple-900">{stats.completedConversations}</p>
+              </div>
+            </div>
+          </CorporateCard>
+        </div>
 
-        {/* Tabs para sesiones y actividad */}
-        <Tabs defaultValue="sessions" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="sessions">Sesiones ({filteredSessions.length})</TabsTrigger>
-            <TabsTrigger value="activity">Actividad ({activities.length})</TabsTrigger>
+        <Tabs defaultValue="overview" className="space-y-4">
+          <TabsList className="bg-emerald-50 border border-emerald-200">
+            <TabsTrigger value="overview" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
+              Resumen
+            </TabsTrigger>
+            <TabsTrigger value="details" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
+              Detalles
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="sessions" className="space-y-6">
-            {/* Filtros y búsqueda */}
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex flex-col md:flex-row gap-4">
-                  <div className="flex-1">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <Input
-                        placeholder="Buscar sesiones..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10"
-                      />
-                    </div>
-                  </div>
-                  
-                  <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-                    <SelectTrigger className="w-48">
-                      <SelectValue placeholder="Ordenar por" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="date">Fecha</SelectItem>
-                      <SelectItem value="score">Puntuación</SelectItem>
-                      <SelectItem value="duration">Duración</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  
-                  <Select value={filterBy} onValueChange={(value: any) => setFilterBy(value)}>
-                    <SelectTrigger className="w-48">
-                      <SelectValue placeholder="Filtrar por" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todas</SelectItem>
-                      <SelectItem value="completed">Completadas</SelectItem>
-                      <SelectItem value="high_score">Puntuación Alta (80%+)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Lista de sesiones */}
-            {filteredSessions.length === 0 ? (
-              <Card>
-                <CardContent className="p-12 text-center">
-                  <Clock className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                    No hay sesiones para mostrar
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-400">
-                    Comienza una nueva sesión de entrenamiento para ver tu historial aquí
+          <TabsContent value="overview" className="space-y-4">
+            {conversations.length === 0 ? (
+              <CorporateCard>
+                <CardContent className="p-8 text-center">
+                  <HistoryIcon className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No hay conversaciones aún</h3>
+                  <p className="text-gray-600 mb-4">
+                    Comienza tu primer entrenamiento para ver el historial aquí.
                   </p>
+                  <Button className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white">
+                    Iniciar Entrenamiento
+                  </Button>
                 </CardContent>
-              </Card>
+              </CorporateCard>
             ) : (
               <div className="space-y-4">
-                {filteredSessions.map((session) => (
-                  <Card key={session.id} className="hover:shadow-md transition-shadow">
+                {conversations.map((conversation) => (
+                  <CorporateCard key={conversation.id} className="hover:shadow-lg transition-shadow border-emerald-200">
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2">
-                            <h3 className="font-semibold text-lg">
-                              {session.scenario_title || 'Sesión de Entrenamiento'}
-                            </h3>
-                            {session.completed_at && (
-                              <Badge
-                                className={`${getScoreColor(session.score || 0)} text-white`}
-                              >
-                                {session.score || 0}% - {getScoreLabel(session.score || 0)}
-                              </Badge>
-                            )}
+                        <div className="space-y-3 flex-1">
+                          <div className="flex items-center space-x-3">
+                            <div className="bg-emerald-100 p-2 rounded-lg">
+                              {conversation.mode === 'call' ? (
+                                <Headphones className="h-4 w-4 text-emerald-600" />
+                              ) : (
+                                <MessageSquare className="h-4 w-4 text-emerald-600" />
+                              )}
+                            </div>
+                            <h3 className="font-semibold text-emerald-900">{conversation.scenario_title}</h3>
+                            {getStatusBadge(conversation)}
+                            {getScoreBadge(conversation.final_score)}
                           </div>
                           
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
+                          <div className="flex items-center space-x-6 text-sm text-gray-600">
                             <div className="flex items-center space-x-1">
                               <Calendar className="h-4 w-4" />
-                              <span>{formatDate(session.created_at || '')}</span>
+                              <span>{format(new Date(conversation.created_at), 'dd/MM/yyyy HH:mm', { locale: es })}</span>
                             </div>
+                            
                             <div className="flex items-center space-x-1">
                               <Clock className="h-4 w-4" />
-                              <span>{formatDuration(session.duration_minutes || 0)}</span>
+                              <span>{formatDuration(conversation.duration_seconds)}</span>
                             </div>
-                            <div>
-                              <span>Emoción: {session.client_emotion || 'N/A'}</span>
-                            </div>
-                            <div>
-                              <span>Modo: {session.interaction_mode || 'N/A'}</span>
+                            
+                            <div className="flex items-center space-x-1">
+                              <MessageSquare className="h-4 w-4" />
+                              <span>{conversation.total_messages} mensajes</span>
                             </div>
                           </div>
-                          
-                          {(session.total_messages || 0) > 0 && (
-                            <div className="mt-2 text-sm text-gray-500">
-                              {session.total_messages} mensajes • {session.user_words_count || 0} palabras del usuario
-                            </div>
-                          )}
+
+                          <div className="flex items-center space-x-4 text-sm">
+                            <span className="text-gray-700">
+                              <strong>Cliente:</strong> {conversation.client_emotion}
+                            </span>
+                            <span className="text-gray-700">
+                              <strong>Modo:</strong> {conversation.mode === 'call' ? 'Llamada' : 'Chat'}
+                            </span>
+                            {conversation.voice_used && (
+                              <span className="text-gray-700">
+                                <strong>Voz:</strong> {conversation.voice_used}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        
-                        <div className="flex flex-col items-end space-y-2">
-                          <Badge variant={session.completed_at ? 'default' : 'secondary'}>
-                            {session.completed_at ? 'Completada' : 'En progreso'}
-                          </Badge>
+
+                        <div className="flex items-center space-x-2 ml-4">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSelectedConversation(conversation)}
+                            className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            Ver
+                          </Button>
+                          
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => exportConversation(conversation)}
+                            className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                          >
+                            <Download className="h-4 w-4 mr-2" />
+                            Exportar
+                          </Button>
                         </div>
                       </div>
                     </CardContent>
-                  </Card>
+                  </CorporateCard>
                 ))}
               </div>
             )}
           </TabsContent>
 
-          <TabsContent value="activity" className="space-y-6">
-            {activitiesLoading ? (
-              <div className="space-y-4">
-                {[...Array(5)].map((_, i) => (
-                  <Card key={i} className="animate-pulse">
-                    <CardContent className="p-6">
-                      <div className="h-16 bg-gray-200 dark:bg-gray-700 rounded"></div>
-                    </CardContent>
-                  </Card>
-                ))}
+          <TabsContent value="details" className="space-y-4">
+            {selectedConversation ? (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Información de la conversación */}
+                <CorporateCard className="lg:col-span-1">
+                  <CardHeader className="bg-emerald-50 border-b border-emerald-100">
+                    <CardTitle className="text-emerald-900 flex items-center">
+                      <HistoryIcon className="h-5 w-5 mr-2" />
+                      Información de la Sesión
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-6 space-y-4">
+                    <div>
+                      <strong className="text-gray-900">Escenario:</strong>
+                      <p className="text-gray-700 mt-1">{selectedConversation.scenario_title}</p>
+                    </div>
+                    <div>
+                      <strong className="text-gray-900">Fecha:</strong>
+                      <p className="text-gray-700 mt-1">
+                        {format(new Date(selectedConversation.created_at), 'dd/MM/yyyy HH:mm', { locale: es })}
+                      </p>
+                    </div>
+                    <div>
+                      <strong className="text-gray-900">Duración:</strong>
+                      <p className="text-gray-700 mt-1">{formatDuration(selectedConversation.duration_seconds)}</p>
+                    </div>
+                    <div>
+                      <strong className="text-gray-900">Total mensajes:</strong>
+                      <p className="text-gray-700 mt-1">{selectedConversation.total_messages}</p>
+                    </div>
+                    <div>
+                      <strong className="text-gray-900">Puntuación Final:</strong>
+                      <div className="mt-1">{getScoreBadge(selectedConversation.final_score)}</div>
+                    </div>
+                    <div>
+                      <strong className="text-gray-900">Tipo:</strong>
+                      <p className="text-gray-700 mt-1">
+                        {selectedConversation.mode === 'call' ? 'Llamada de Voz' : 'Chat de Texto'}
+                      </p>
+                    </div>
+                  </CardContent>
+                </CorporateCard>
+
+                {/* Transcripción */}
+                <CorporateCard className="lg:col-span-2">
+                  <CardHeader className="bg-emerald-50 border-b border-emerald-100">
+                    <CardTitle className="text-emerald-900 flex items-center">
+                      <MessageSquare className="h-5 w-5 mr-2" />
+                      Transcripción Completa
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="max-h-96 overflow-y-auto">
+                      {selectedConversation.conversation_data && selectedConversation.conversation_data.length > 0 ? (
+                        <div className="space-y-3 p-6">
+                          {selectedConversation.conversation_data.map((message, index) => (
+                            <div key={index} className={`flex ${
+                              message.sender === 'user' ? 'justify-end' : 'justify-start'
+                            }`}>
+                              <div className={`max-w-[80%] rounded-lg px-3 py-2 ${
+                                message.sender === 'user' 
+                                  ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white' 
+                                  : 'bg-gray-100 text-gray-900'
+                              }`}>
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-xs font-medium opacity-70">
+                                    {message.sender === 'user' ? 'Usuario' : 'Cliente IA'}
+                                  </span>
+                                  <span className="text-xs opacity-60">
+                                    {format(new Date(message.timestamp), 'HH:mm')}
+                                  </span>
+                                </div>
+                                <p className="text-sm">{message.content}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="p-6 text-center text-gray-500">
+                          No hay mensajes en esta conversación.
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </CorporateCard>
               </div>
-            ) : activities.length === 0 ? (
-              <Card>
-                <CardContent className="p-12 text-center">
-                  <TrendingUp className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                    No hay actividad registrada
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-400">
-                    Tu actividad aparecerá aquí conforme uses la plataforma
+            ) : (
+              <CorporateCard>
+                <CardContent className="p-8 text-center">
+                  <Eye className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Selecciona una conversación</h3>
+                  <p className="text-gray-600">
+                    Haz clic en "Ver" en cualquier conversación para ver los detalles completos.
                   </p>
                 </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-4">
-                {activities.map((activity) => (
-                  <Card key={activity.id}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <p className="font-medium">{getActivityDescription(activity)}</p>
-                          <p className="text-sm text-gray-500">
-                            {formatDate(activity.created_at!)}
-                          </p>
-                        </div>
-                        {activity.points_earned > 0 && (
-                          <Badge variant="secondary">
-                            +{activity.points_earned} XP
-                          </Badge>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+              </CorporateCard>
             )}
           </TabsContent>
         </Tabs>
       </div>
-    </div>
+    </CorporateLayout>
   );
 };
 
