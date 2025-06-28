@@ -102,10 +102,7 @@ const Training = () => {
   }];
   return <CorporateLayout>
       <div className="p-4 sm:p-6 max-w-7xl px-[10px] mx-[-2px]">
-        <CorporateHeader title="Centro de Entrenamiento IA" subtitle="Mejora tus habilidades de comunicación con simulaciones realistas y voces latinas auténticas" icon={<img src={iconUrl} alt="Training" className="h-6 w-6" />} actions={<Button variant="outline" size="sm" className="hidden sm:flex items-center gap-2">
-              <img src={iconUrl} alt="Help" className="h-4 w-4" />
-              Ayuda
-            </Button>} />
+        
 
         <CorporateStats stats={trainingStats} className="mb-6 sm:mb-8" />
 
