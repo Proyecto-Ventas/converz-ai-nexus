@@ -195,7 +195,7 @@ const ProfessionalSidebar: React.FC<ProfessionalSidebarProps> = ({ onWidthChange
             {!isCollapsed && (
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-gray-900 truncate">
-                  {user?.name || 'Usuario'}
+                  {user?.email || 'Usuario'}
                 </p>
                 <p className="text-xs text-gray-600 truncate">
                   {user?.email || 'usuario@ejemplo.com'}

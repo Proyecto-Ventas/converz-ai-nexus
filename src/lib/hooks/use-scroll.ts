@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react'
 
 interface ScrollPosition {
@@ -64,8 +65,8 @@ export function useScroll(options: ScrollOptions = {}): ScrollPosition {
     scrollElement.current = element || window
     
     // If element is a ref, use its current value
-    if (element && 'current' in element) {
-      scrollElement.current = element.current
+    if (element && typeof element === 'object' && 'current' in element) {
+      scrollElement.current = element.current as HTMLElement | Window | Document | null
     }
     
     return () => {
@@ -246,15 +247,17 @@ export function useScrollProgress(options: Omit<ScrollOptions, 'onScroll'> = {})
  */
 export function useScrollDirection(options: Omit<ScrollOptions, 'onScroll'> = {}): 'up' | 'down' | null {
   const [direction, setDirection] = useState<'up' | 'down' | null>(null)
+  const prevY = useRef(0)
   
   useScroll({
     ...options,
-    onScroll: ({ y }, prevY) => {
-      if (y > prevY) {
+    onScroll: ({ y }) => {
+      if (y > prevY.current) {
         setDirection('down')
-      } else if (y < prevY) {
+      } else if (y < prevY.current) {
         setDirection('up')
       }
+      prevY.current = y
     },
   })
   

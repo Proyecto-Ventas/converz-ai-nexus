@@ -1,3 +1,4 @@
+
 import * as React from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/lib/ui-utils'
@@ -115,6 +116,7 @@ const NavigationBar = React.forwardRef<HTMLDivElement, NavigationBarProps>(
         .substring(0, 2)
     }
 
+    const navHeight = typeof height === 'number' ? `${height}px` : height
 
     return (
       <header
@@ -128,11 +130,11 @@ const NavigationBar = React.forwardRef<HTMLDivElement, NavigationBarProps>(
           className
         )}
         style={{
-          '--nav-height': typeof height === 'number' ? `${height}px` : height,
-        }}
+          height: navHeight,
+        } as React.CSSProperties}
         {...props}
       >
-        <div className="container mx-auto px-4 h-[var(--nav-height)] flex items-center">
+        <div className="container mx-auto px-4 h-full flex items-center">
           {/* Left section */}
           <div className="flex items-center flex-shrink-0">
             {showSidebarToggle && (
