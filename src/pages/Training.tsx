@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import EnhancedScenarioSelector from '@/components/training/EnhancedScenarioSelector';
@@ -7,23 +6,18 @@ import TrainingSetup from '@/components/training/TrainingSetup';
 import EvaluationResults from '@/components/EvaluationResults';
 import { CorporateLayout, CorporateCard, CorporateHeader, CorporateSection, CorporateStats } from '@/components/ui/corporate-layout';
 import type { Database } from '@/integrations/supabase/types';
-
 type Scenario = Database['public']['Tables']['scenarios']['Row'];
-
 const Training = () => {
   const [currentView, setCurrentView] = useState<'setup' | 'config' | 'training' | 'results'>('setup');
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
   const [trainingConfig, setTrainingConfig] = useState<any>(null);
   const [evaluationResults, setEvaluationResults] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-
   const iconUrl = "https://www.convertia.com/favicon/favicon-convertia.png";
-
   const handleScenarioSelect = (scenario: Scenario) => {
     setSelectedScenario(scenario);
     setCurrentView('config');
   };
-
   const handleConfigComplete = (config: any) => {
     setIsLoading(true);
     setTrainingConfig(config);
@@ -32,25 +26,21 @@ const Training = () => {
       setCurrentView('training');
     }, 1000);
   };
-
   const handleTrainingComplete = (evaluation: any) => {
     setEvaluationResults(evaluation);
     setCurrentView('results');
   };
-
   const resetTraining = () => {
     setCurrentView('setup');
     setSelectedScenario(null);
     setTrainingConfig(null);
     setEvaluationResults(null);
   };
-
   const goBackToScenarios = () => {
     setCurrentView('setup');
     setSelectedScenario(null);
     setTrainingConfig(null);
   };
-
   const goBackToConfig = () => {
     setCurrentView('config');
     setTrainingConfig(null);
@@ -58,8 +48,7 @@ const Training = () => {
 
   // Loading state
   if (isLoading) {
-    return (
-      <CorporateLayout>
+    return <CorporateLayout>
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center space-y-4">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
@@ -69,82 +58,54 @@ const Training = () => {
             </div>
           </div>
         </div>
-      </CorporateLayout>
-    );
+      </CorporateLayout>;
   }
 
   // Vista de configuración previa
   if (currentView === 'config' && selectedScenario) {
-    return (
-      <CorporateLayout>
+    return <CorporateLayout>
         <div className="p-4 sm:p-6 max-w-7xl mx-auto">
-          <TrainingSetup
-            scenario={selectedScenario}
-            onStart={handleConfigComplete}
-            onBack={goBackToScenarios}
-          />
+          <TrainingSetup scenario={selectedScenario} onStart={handleConfigComplete} onBack={goBackToScenarios} />
         </div>
-      </CorporateLayout>
-    );
+      </CorporateLayout>;
   }
 
   // Vista de entrenamiento en vivo
   if (currentView === 'training' && selectedScenario && trainingConfig) {
-    return (
-      <LiveTrainingInterface
-        scenario={selectedScenario.id}
-        scenarioTitle={selectedScenario.title}
-        scenarioDescription={selectedScenario.description || ''}
-        mode={trainingConfig.mode}
-        clientEmotion={trainingConfig.clientEmotion}
-        selectedVoiceId={trainingConfig.selectedVoiceId}
-        selectedVoiceName={trainingConfig.selectedVoiceName}
-        onComplete={handleTrainingComplete}
-        onBack={goBackToConfig}
-      />
-    );
+    return <LiveTrainingInterface scenario={selectedScenario.id} scenarioTitle={selectedScenario.title} scenarioDescription={selectedScenario.description || ''} mode={trainingConfig.mode} clientEmotion={trainingConfig.clientEmotion} selectedVoiceId={trainingConfig.selectedVoiceId} selectedVoiceName={trainingConfig.selectedVoiceName} onComplete={handleTrainingComplete} onBack={goBackToConfig} />;
   }
 
   // Vista de resultados
   if (currentView === 'results' && evaluationResults) {
-    return (
-      <CorporateLayout>
+    return <CorporateLayout>
         <div className="p-4 sm:p-6 max-w-7xl mx-auto">
-          <EvaluationResults
-            evaluation={evaluationResults}
-            onRetry={resetTraining}
-            onNextLevel={resetTraining}
-          />
+          <EvaluationResults evaluation={evaluationResults} onRetry={resetTraining} onNextLevel={resetTraining} />
         </div>
-      </CorporateLayout>
-    );
+      </CorporateLayout>;
   }
-
-  const trainingStats = [
-    { label: 'Escenarios Disponibles', value: '12', icon: <img src={iconUrl} alt="Escenarios" className="h-5 w-5" /> },
-    { label: 'Voces Latinas', value: '23', icon: <img src={iconUrl} alt="Voces" className="h-5 w-5" /> },
-    { label: 'Países Cubiertos', value: '9', icon: <img src={iconUrl} alt="Países" className="h-5 w-5" /> },
-    { label: 'Entrenamientos Hoy', value: '8', icon: <img src={iconUrl} alt="Entrenamientos" className="h-5 w-5" /> }
-  ];
-
-  return (
-    <CorporateLayout>
-      <div className="p-4 sm:p-6 max-w-7xl mx-auto">
-        <CorporateHeader
-          title="Centro de Entrenamiento IA"
-          subtitle="Mejora tus habilidades de comunicación con simulaciones realistas y voces latinas auténticas"
-          icon={<img src={iconUrl} alt="Training" className="h-6 w-6" />}
-          actions={
-            <Button
-              variant="outline"
-              size="sm"
-              className="hidden sm:flex items-center gap-2"
-            >
+  const trainingStats = [{
+    label: 'Escenarios Disponibles',
+    value: '12',
+    icon: <img src={iconUrl} alt="Escenarios" className="h-5 w-5" />
+  }, {
+    label: 'Voces Latinas',
+    value: '23',
+    icon: <img src={iconUrl} alt="Voces" className="h-5 w-5" />
+  }, {
+    label: 'Países Cubiertos',
+    value: '9',
+    icon: <img src={iconUrl} alt="Países" className="h-5 w-5" />
+  }, {
+    label: 'Entrenamientos Hoy',
+    value: '8',
+    icon: <img src={iconUrl} alt="Entrenamientos" className="h-5 w-5" />
+  }];
+  return <CorporateLayout>
+      <div className="p-4 sm:p-6 max-w-7xl px-[10px] mx-[-2px]">
+        <CorporateHeader title="Centro de Entrenamiento IA" subtitle="Mejora tus habilidades de comunicación con simulaciones realistas y voces latinas auténticas" icon={<img src={iconUrl} alt="Training" className="h-6 w-6" />} actions={<Button variant="outline" size="sm" className="hidden sm:flex items-center gap-2">
               <img src={iconUrl} alt="Help" className="h-4 w-4" />
               Ayuda
-            </Button>
-          }
-        />
+            </Button>} />
 
         <CorporateStats stats={trainingStats} className="mb-6 sm:mb-8" />
 
@@ -163,13 +124,23 @@ const Training = () => {
             <CorporateSection title="Guía de Entrenamiento">
               <CorporateCard className="p-4 sm:p-6">
                 <div className="space-y-4">
-                  {[
-                    { step: '1', title: 'Selecciona Escenario', desc: 'Elige el tipo de práctica que necesitas' },
-                    { step: '2', title: 'Configura Parámetros', desc: 'Elige modo llamada o chat, personalidad del cliente y voz' },
-                    { step: '3', title: 'Practica en Vivo', desc: 'Interactúa por chat o voz con IA' },
-                    { step: '4', title: 'Recibe Feedback', desc: 'Obtén evaluación detallada y consejos' }
-                  ].map((item) => (
-                    <div key={item.step} className="flex items-start space-x-3">
+                  {[{
+                  step: '1',
+                  title: 'Selecciona Escenario',
+                  desc: 'Elige el tipo de práctica que necesitas'
+                }, {
+                  step: '2',
+                  title: 'Configura Parámetros',
+                  desc: 'Elige modo llamada o chat, personalidad del cliente y voz'
+                }, {
+                  step: '3',
+                  title: 'Practica en Vivo',
+                  desc: 'Interactúa por chat o voz con IA'
+                }, {
+                  step: '4',
+                  title: 'Recibe Feedback',
+                  desc: 'Obtén evaluación detallada y consejos'
+                }].map(item => <div key={item.step} className="flex items-start space-x-3">
                       <div className="w-8 h-8 corporate-emerald rounded-full flex items-center justify-center flex-shrink-0">
                         <span className="text-white font-semibold text-sm">{item.step}</span>
                       </div>
@@ -177,8 +148,7 @@ const Training = () => {
                         <h4 className="font-semibold text-gray-900 text-sm sm:text-base">{item.title}</h4>
                         <p className="text-xs sm:text-sm text-gray-600 mt-1">{item.desc}</p>
                       </div>
-                    </div>
-                  ))}
+                    </div>)}
                 </div>
 
                 <div className="mt-6 p-4 corporate-emerald-light rounded-lg corporate-emerald-border border">
@@ -195,8 +165,6 @@ const Training = () => {
           </div>
         </div>
       </div>
-    </CorporateLayout>
-  );
+    </CorporateLayout>;
 };
-
 export default Training;
