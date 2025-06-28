@@ -1,3 +1,5 @@
+
+import React from 'react'
 import { css } from '@emotion/react'
 import { CSSProperties } from 'react'
 
@@ -258,7 +260,7 @@ export const Text = React.forwardRef<HTMLElement, TextProps>(({
 }, ref) => {
   const style = getTextStyle(variant)
   
-  const css = [
+  const cssStyles = [
     {
       fontFamily: getFontFamily(fontFamily),
       fontWeight: fontWeight ? getFontWeight(fontWeight) : style.fontWeight,
@@ -286,71 +288,56 @@ export const Text = React.forwardRef<HTMLElement, TextProps>(({
     customCss,
   ]
 
-  return <Component ref={ref} css={css} {...props} />
+  return React.createElement(Component, { ref, css: cssStyles, ...props })
 })
 
 Text.displayName = 'Text'
 
 // Export all text styles as components
-export const Display1 = (props: Omit<TextProps, 'variant'>) => (
-  <Text variant="display1" {...props} />
-)
+export const Display1 = (props: Omit<TextProps, 'variant'>) => 
+  React.createElement(Text, { variant: 'display1', ...props })
 
-export const Display2 = (props: Omit<TextProps, 'variant'>) => (
-  <Text variant="display2" {...props} />
-)
+export const Display2 = (props: Omit<TextProps, 'variant'>) => 
+  React.createElement(Text, { variant: 'display2', ...props })
 
-export const Display3 = (props: Omit<TextProps, 'variant'>) => (
-  <Text variant="display3" {...props} />
-)
+export const Display3 = (props: Omit<TextProps, 'variant'>) => 
+  React.createElement(Text, { variant: 'display3', ...props })
 
-export const H1 = (props: Omit<TextProps, 'variant'>) => (
-  <Text as="h1" variant="h1" {...props} />
-)
+export const H1 = (props: Omit<TextProps, 'variant'>) => 
+  React.createElement(Text, { as: 'h1', variant: 'h1', ...props })
 
-export const H2 = (props: Omit<TextProps, 'variant'>) => (
-  <Text as="h2" variant="h2" {...props} />
-)
+export const H2 = (props: Omit<TextProps, 'variant'>) => 
+  React.createElement(Text, { as: 'h2', variant: 'h2', ...props })
 
-export const H3 = (props: Omit<TextProps, 'variant'>) => (
-  <Text as="h3" variant="h3" {...props} />
-)
+export const H3 = (props: Omit<TextProps, 'variant'>) => 
+  React.createElement(Text, { as: 'h3', variant: 'h3', ...props })
 
-export const H4 = (props: Omit<TextProps, 'variant'>) => (
-  <Text as="h4" variant="h4" {...props} />
-)
+export const H4 = (props: Omit<TextProps, 'variant'>) => 
+  React.createElement(Text, { as: 'h4', variant: 'h4', ...props })
 
-export const H5 = (props: Omit<TextProps, 'variant'>) => (
-  <Text as="h5" variant="h5" {...props} />
-)
+export const H5 = (props: Omit<TextProps, 'variant'>) => 
+  React.createElement(Text, { as: 'h5', variant: 'h5', ...props })
 
-export const H6 = (props: Omit<TextProps, 'variant'>) => (
-  <Text as="h6" variant="h6" {...props} />
-)
+export const H6 = (props: Omit<TextProps, 'variant'>) => 
+  React.createElement(Text, { as: 'h6', variant: 'h6', ...props })
 
-export const Body1 = (props: Omit<TextProps, 'variant'>) => (
-  <Text variant="body1" {...props} />
-)
+export const Body1 = (props: Omit<TextProps, 'variant'>) => 
+  React.createElement(Text, { variant: 'body1', ...props })
 
-export const Body2 = (props: Omit<TextProps, 'variant'>) => (
-  <Text variant="body2" {...props} />
-)
+export const Body2 = (props: Omit<TextProps, 'variant'>) => 
+  React.createElement(Text, { variant: 'body2', ...props })
 
-export const Small = (props: Omit<TextProps, 'variant'>) => (
-  <Text variant="small" {...props} />
-)
+export const Small = (props: Omit<TextProps, 'variant'>) => 
+  React.createElement(Text, { variant: 'small', ...props })
 
-export const Caption = (props: Omit<TextProps, 'variant'>) => (
-  <Text variant="caption" {...props} />
-)
+export const Caption = (props: Omit<TextProps, 'variant'>) => 
+  React.createElement(Text, { variant: 'caption', ...props })
 
-export const Overline = (props: Omit<TextProps, 'variant'>) => (
-  <Text variant="overline" {...props} />
-)
+export const Overline = (props: Omit<TextProps, 'variant'>) => 
+  React.createElement(Text, { variant: 'overline', ...props })
 
-export const ButtonText = (props: Omit<TextProps, 'variant'>) => (
-  <Text variant="button" {...props} />
-)
+export const ButtonText = (props: Omit<TextProps, 'variant'>) => 
+  React.createElement(Text, { variant: 'button', ...props })
 
 export default {
   fontFamilies,
